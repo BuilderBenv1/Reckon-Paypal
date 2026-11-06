@@ -36,3 +36,10 @@ language sql security definer set search_path = public as $$
   ) select count(*)::integer from gone;
 $$;
 revoke all on function public.reckon_pp_prune_demo_runs() from public, anon, authenticated;
+
+-- Switches for one-off server checks (e.g. key 'smoke' opens /api/smoke until `until`).
+create table if not exists public.reckon_pp_flags (
+  key text primary key,
+  until timestamptz not null default now()
+);
+alter table public.reckon_pp_flags enable row level security;
