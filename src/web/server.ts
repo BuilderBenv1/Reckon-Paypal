@@ -44,7 +44,7 @@ export async function loadView(runId: string | undefined): Promise<RunView | nul
 
 export async function createRun(mode: Mode, code?: string): Promise<RunView> {
   if (mode === 'live') {
-    if (!liveConfigured()) throw new UserError('Live runs need Airwallex sandbox keys on the server.');
+    if (!liveConfigured()) throw new UserError('Live runs need PayPal sandbox keys on the server.');
     const want = process.env.RECKON_LIVE_CODE;
     if (want && code !== want) throw new UserError('That access code is not right.');
   }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { checkDraft, ClaudeDrafter, numbersIn } from '../src/agent/drafter.js';
 
 const template =
-  'Hi,\n\nYour invoice for stage 2 (USD 12,000) is due in 21 days. If it suits you to settle early, you can pay USD 11,820 today through this secure link and keep the difference:\n\nhttps://pay.sandbox.airwallex.com/abc123\n\nThanks,\nAccounts';
+  'Hi,\n\nYour invoice for stage 2 (USD 12,000) is due in 21 days. If it suits you to settle early, you can pay USD 11,820 today through this secure link and keep the difference:\n\nhttps://www.sandbox.paypal.com/invoice/p/#INV2-TEST\n\nThanks,\nAccounts';
 
 const client = (text: string) => ({ messages: { create: async () => ({ content: [{ type: 'text', text }] }) } }) as never;
 
@@ -13,7 +13,7 @@ describe('number guard on drafted messages', () => {
 
   it('accepts a rewording that keeps every number and the link', () => {
     const draft =
-      'Hello,\n\nStage 2 (USD 12,000) falls due in 21 days. Should you prefer to settle now, USD 11,820 paid today through the link below closes it:\n\nhttps://pay.sandbox.airwallex.com/abc123\n\nBest,\nAccounts';
+      'Hello,\n\nStage 2 (USD 12,000) falls due in 21 days. Should you prefer to settle now, USD 11,820 paid today through the link below closes it:\n\nhttps://www.sandbox.paypal.com/invoice/p/#INV2-TEST\n\nBest,\nAccounts';
     expect(checkDraft(template, draft)).toBeNull();
   });
 

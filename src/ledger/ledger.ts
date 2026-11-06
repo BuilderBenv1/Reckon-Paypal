@@ -1,5 +1,5 @@
 import type { Policy } from '../domain/types.js';
-import type { TransferStatus } from '../airwallex/port.js';
+import type { TransferStatus } from '../bank/port.js';
 import type { Decision } from '../policy/plan.js';
 import { canonical, recordDecision, sha256, type DecisionRecord } from '../policy/replay.js';
 import type { CashState } from '../policy/state.js';

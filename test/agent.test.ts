@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { defaultPolicy, seedBalances, seedBook, seedRates } from '../src/domain/seed.js';
-import { FakeAirwallex } from '../src/airwallex/fake.js';
+import { FakeBank } from '../src/bank/fake.js';
 import { ClaudeReader, FixtureReader, validate } from '../src/agent/reader.js';
 import { Reckon } from '../src/agent/reckon.js';
 import { DuplicatePaymentError, Ledger } from '../src/ledger/ledger.js';
@@ -14,34 +14,34 @@ import { readBook, writeBook } from '../src/sheet/workbook.js';
 const setup = () => {
   let t = 0;
   let n = 0;
-  const awx = new FakeAirwallex({ ...seedBalances }, seedRates);
+  const bank = new FakeBank({ ...seedBalances }, seedRates);
   const reckon = new Reckon(
     initialState(structuredClone(seedBook), { ...seedBalances }, seedRates),
     defaultPolicy,
-    awx,
+    bank,
     new FixtureReader(),
     () => `2026-11-02T09:${String(++t).padStart(2, '0')}:00Z`,
     () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`,
   );
-  return { awx, reckon };
+  return { bank, reckon };
 };
 const delayEmail = { id: 'EM-01', from: 'accounts@westfield-academy.example', subject: 'Re: Invoice', body: 'next Tuesday' };
 
 describe('approvals are bound to exact terms', () => {
-  it('does not execute an approval-required conversion until the MD approves it', async () => {
+  it('does not send an approval-required payout until the MD approves it', async () => {
     const { reckon } = setup();
     await reckon.ingestEmail(delayEmail);
     const first = await reckon.run();
-    expect(first.executed).not.toContain('convert:EUR');
-    expect(first.awaitingApproval.map((d) => d.id)).toContain('convert:EUR');
-    reckon.approve('convert:EUR', 'MD');
+    expect(first.executed).not.toContain('pay:PAY-114-FREIGHT');
+    expect(first.awaitingApproval.map((d) => d.id)).toContain('pay:PAY-114-FREIGHT');
+    reckon.approve('pay:PAY-114-FREIGHT', 'MD');
     const second = await reckon.run();
-    expect(second.executed).toEqual(expect.arrayContaining(['convert:EUR', 'pay:PAY-114-FREIGHT']));
+    expect(second.executed).toContain('pay:PAY-114-FREIGHT');
   });
 
   it('voids an approval when the terms change', () => {
     const ledger = new Ledger();
-    const d = plan(initialState(seedBook, seedBalances, seedRates), defaultPolicy).decisions.find((x) => x.id === 'convert:EUR')!;
+    const d = plan(initialState(seedBook, seedBalances, seedRates), defaultPolicy).decisions.find((x) => x.id === 'pay:PAY-114-FREIGHT')!;
     ledger.approve(d, 'MD', 'now');
     expect(ledger.isApproved(d)).toBe(true);
     expect(ledger.isApproved({ ...d, amount: d.amount + 1 })).toBe(false);
@@ -65,21 +65,21 @@ describe('never pay twice', () => {
   });
 
   it('does not pay again while the original transfer is still in flight', async () => {
-    const { awx, reckon } = setup();
+    const { bank, reckon } = setup();
     const p = seedBook.payables.find((x) => x.id === 'PAY-109-SUB')!;
     const t = await reckon.pay(p);
-    await awx.transitionTransfer(t.id, 'SENT');
+    await bank.transitionTransfer(t.id, 'SENT');
     const outcome = await reckon.handleNotReceived('PAY-109-SUB');
     expect(outcome.outcome).toBe('in_flight');
     expect(reckon.paymentAttempts()).toHaveLength(1);
   });
 
   it('replaces a definitely-cancelled transfer once, with a new request id', async () => {
-    const { awx, reckon } = setup();
+    const { bank, reckon } = setup();
     const p = seedBook.payables.find((x) => x.id === 'PAY-109-SUB')!;
     const t = await reckon.pay(p);
-    await awx.transitionTransfer(t.id, 'SENT');
-    await awx.transitionTransfer(t.id, 'FAILED', 'ACCOUNT_CLOSED');
+    await bank.transitionTransfer(t.id, 'SENT');
+    await bank.transitionTransfer(t.id, 'FAILED', 'ACCOUNT_CLOSED');
     const outcome = await reckon.handleNotReceived('PAY-109-SUB');
     expect(outcome.outcome).toBe('replaced');
     const [orig, repl] = reckon.paymentAttempts();
@@ -108,12 +108,12 @@ describe('the finance team\'s sheet', () => {
 
 describe('full offline story', () => {
   it('ends with the gap closed, the floor intact and the deposit still held', async () => {
-    const { awx, reckon } = setup();
+    const { bank, reckon } = setup();
     await reckon.ingestEmail(delayEmail);
     await reckon.run();
-    reckon.approve('convert:EUR', 'MD');
+    reckon.approve('pay:PAY-114-FREIGHT', 'MD');
     await reckon.run();
-    await awx.payLink(reckon.links.get('REC-121-INV')!);
+    await bank.payLink(reckon.links.get('REC-121-INV')!);
     await reckon.checkLinks();
     await reckon.ingestEmail({ id: 'EM-02', from: 'dave@penninejoinery.example', subject: 'Re', body: 'yes' });
     const last = await reckon.run();
@@ -130,18 +130,18 @@ describe('full offline story', () => {
 
 describe('live sandbox quirks', () => {
   it('treats a transfer still reading FAILED (before auto-cancel) as dead, and replaces it once', async () => {
-    const { awx, reckon } = setup();
+    const { bank, reckon } = setup();
     const p = seedBook.payables.find((x) => x.id === 'PAY-109-SUB')!;
     const t = await reckon.pay(p);
-    const real = awx.getTransfer.bind(awx);
-    awx.getTransfer = async (id: string) => ({ ...(await real(id)), ...(id === t.id ? { status: 'FAILED' as const, failureType: 'ACCOUNT_CLOSED' } : {}) });
+    const real = bank.getTransfer.bind(bank);
+    bank.getTransfer = async (id: string) => ({ ...(await real(id)), ...(id === t.id ? { status: 'FAILED' as const, failureType: 'ACCOUNT_CLOSED' } : {}) });
     expect((await reckon.handleNotReceived('PAY-109-SUB')).outcome).toBe('replaced');
     expect((await reckon.handleNotReceived('PAY-109-SUB')).outcome).toBe('in_flight');
   });
 
-  it('keeps going when Airwallex cannot email the payment link', async () => {
-    const { awx, reckon } = setup();
-    awx.notifyShopper = async () => {
+  it('keeps going when PayPal cannot email the invoice', async () => {
+    const { bank, reckon } = setup();
+    bank.notifyShopper = async () => {
       throw new Error('invalid shopper_email');
     };
     await reckon.ingestEmail(delayEmail);

@@ -14,7 +14,7 @@ async function tour(o: Opts = {}) {
     v = buildView('t', s);
     script.push({ step: `after:${step}`, beats: after(step, prev, v, o) });
   }
-  await s.act({ type: 'replay', decisionId: 'convert:EUR', tamper: true });
+  await s.act({ type: 'replay', decisionId: 'pay:PAY-114-FREIGHT', tamper: true });
   v = buildView('t', s);
   script.push({ step: 'tamper', beats: afterTamper(v, o) }, { step: 'outro', beats: outro(v, o) });
   return script;
@@ -41,14 +41,15 @@ describe('guided demo narration', () => {
       expect(beats.length, step).toBeGreaterThan(0);
       for (const b of beats) expect(b.text, step).not.toMatch(/undefined|NaN|null|\$\{|\. so|,,/);
     }
-    expect(text(script, 'intro')).toContain('5,771 dollars to spare');
+    expect(text(script, 'intro')).toContain('5,780 dollars to spare');
     expect(text(script, 'intro')).toContain('25 of the 26');
-    expect(text(script, 'intro')).toContain('5,400-euro bill is first, because paying it unlocks 24,000 dollars on the same job');
-    expect(text(script, 'intro')).toContain("One payment, for 7,500 euros, is on hold. That job has no budget yet and it's a new supplier, so");
+    expect(text(script, 'intro')).toContain('5,890-dollar bill is first, because paying it unlocks 24,000 dollars on the same job');
+    expect(text(script, 'intro')).toContain("One payment, for 8,175 dollars, is on hold. That job has no budget yet and it's a new supplier, so");
     const late = text(script, 'after:delay_email');
     expect(late).toContain('counting on that 9,000 dollars');
-    expect(late).toContain('3,229 dollars short');
+    expect(late).toContain('3,220 dollars short');
     expect(late).toContain('covers the gap for 200 dollars');
+    expect(late).toContain('over what Reckon may send alone while things are less certain');
     expect(text(script, 'after:run_0900')).toContain("That's 4 jobs done");
     expect(text(script, 'after:approve')).toContain('pays Rheinfracht Logistik straight away');
     expect(text(script, 'after:customer_pays')).toContain('covered again');
@@ -57,16 +58,16 @@ describe('guided demo narration', () => {
     expect(text(script, 'tamper')).toContain('spots it straight away');
   });
 
-  it('names Airwallex by default but never mentions the hackathon', async () => {
+  it('names PayPal by default but never mentions the hackathon', async () => {
     const words = all(await tour());
-    expect(words).toContain('Airwallex');
+    expect(words).toContain('PayPal');
     expect(words).not.toMatch(/hackathon/i);
     expect(text(await tour(), 'outro')).toMatch(/Thanks for watching\.$/);
   });
 
-  it('event mode leaves Airwallex out, credits the presenter and hands over', async () => {
-    const script = await tour({ airwallex: false, presenter: 'Ben' });
-    expect(all(script)).not.toMatch(/airwallex|hackathon/i);
+  it('event mode leaves PayPal out, credits the presenter and hands over', async () => {
+    const script = await tour({ paypal: false, presenter: 'Ben' });
+    expect(all(script)).not.toMatch(/paypal|hackathon/i);
     expect(text(script, 'intro')).toContain("I'm going to show you Reckon, something Ben has just built.");
     expect(text(script, 'outro')).toMatch(/I'll hand you over to Ben\.$/);
     expect(text(script, 'after:chase')).toContain('checks with the bank first');

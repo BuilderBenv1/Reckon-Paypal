@@ -1,7 +1,7 @@
-// Replays the whole demo story against an in-memory Airwallex, no keys needed.
+// Replays the whole demo story against an in-memory PayPal stand-in, no keys needed.
 //   npm run demo:offline
 import { seedBalances, seedRates } from '../src/domain/seed.js';
-import { FakeAirwallex } from '../src/airwallex/fake.js';
+import { FakeBank } from '../src/bank/fake.js';
 import { FixtureReader } from '../src/agent/reader.js';
 import { AS_OF, runStory } from './story.js';
 
@@ -13,11 +13,11 @@ const clock = () => {
 let n = 0;
 const newId = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
 
-const awx = new FakeAirwallex({ ...seedBalances }, seedRates);
+const bank = new FakeBank({ ...seedBalances }, seedRates);
 await runStory({
-  awx,
+  bank,
   reader: new FixtureReader(),
-  payLink: async (linkId) => awx.payLink(linkId),
+  payLink: async (linkId) => bank.payLink(linkId),
   newId,
   clock,
   outDir: 'out',

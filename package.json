@@ -2,7 +2,7 @@
   "name": "reckon",
   "version": "0.1.0",
   "private": true,
-  "description": "A finance agent for project businesses that closes a cash gap instead of just rationing it. Built on Airwallex APIs for the Agentic Banking Hackathon 2026.",
+  "description": "A finance agent for project businesses that closes a cash gap instead of just rationing it. Built on PayPal APIs (Invoicing, Payouts, Reporting, webhooks) and Claude.",
   "type": "module",
   "scripts": {
     "dev": "next dev",

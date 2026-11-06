@@ -1,12 +1,12 @@
 import type { Balances, Currency, TransferMethod } from '../domain/types.js';
 import type { PayeeDetails } from '../domain/payees.js';
 
-// Everything Reckon needs from Airwallex, behind one interface. The planner never sees this;
+// Everything Reckon needs from the bank (PayPal here), behind one interface. The planner never sees this;
 // the agent calls it only to carry out decisions the policy engine has already allowed.
 
 /**
- * Airwallex transfer states. A failed transfer ends CANCELLED, but can read FAILED for a few
- * seconds first, so code treats both as a definite failure.
+ * Payment states. PayPal payout states are mapped onto these in src/paypal/rest.ts. FAILED and
+ * CANCELLED both mean the money did not arrive, so code treats both as a definite failure.
  */
 export type TransferStatus = 'CREATED' | 'PROCESSING' | 'SENT' | 'PAID' | 'FAILED' | 'CANCELLED';
 
@@ -41,7 +41,7 @@ export interface PaymentLinkView {
   currency: Currency;
 }
 
-export interface AirwallexPort {
+export interface BankPort {
   balances(): Promise<Balances>;
   /** Single-use: book a quote once, get a fresh one to convert again. */
   quote(sell: Currency, buy: Currency, buyAmount: number): Promise<FxQuote>;

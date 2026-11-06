@@ -1,4 +1,4 @@
-import type { AirwallexPort, SandboxSimulator } from '../airwallex/port.js';
+import type { BankPort, SandboxSimulator } from '../bank/port.js';
 import type { Reckon } from '../agent/reckon.js';
 
 export const CHASED_PAYABLE = 'PAY-109-SUB-I2';
@@ -9,7 +9,7 @@ export const CHASED_PAYABLE = 'PAY-109-SUB-I2';
  * settled transfer can't be failed. The opening deposit and the payment cancel out, so the
  * rest of the story sees the same balances.
  */
-export async function setupReturnedInstalment(reckon: Reckon, sim: SandboxSimulator & { getTransfer: AirwallexPort['getTransfer'] }) {
+export async function setupReturnedInstalment(reckon: Reckon, sim: SandboxSimulator & { getTransfer: BankPort['getTransfer'] }) {
   await sim.deposit(2500, 'USD', 'Opening balance');
   const prior = await reckon.pay({
     id: CHASED_PAYABLE, job: '109', supplier: 'Brightline Electrical Inc', description: 'Subcontractor instalment 2',
@@ -21,7 +21,7 @@ export async function setupReturnedInstalment(reckon: Reckon, sim: SandboxSimula
 }
 
 /** Fails a SENT transfer with a bank-return reason, retrying once if the sandbox hiccups. */
-export async function failTransfer(sim: SandboxSimulator & { getTransfer: AirwallexPort['getTransfer'] }, id: string) {
+export async function failTransfer(sim: SandboxSimulator & { getTransfer: BankPort['getTransfer'] }, id: string) {
   try {
     await sim.transitionTransfer(id, 'FAILED', 'ACCOUNT_CLOSED');
   } catch {

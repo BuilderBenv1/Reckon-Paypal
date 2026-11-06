@@ -48,7 +48,7 @@ export function voiceConfig(env: Record<string, string | undefined> = process.en
 let script: Promise<string[]> | null = null;
 
 /**
- * Every line the guided demo can say, in order: the default script (names Airwallex), then event
+ * Every line the guided demo can say, in order: the default script (names PayPal), then event
  * mode (?handoff: generic bank, presenter's name), each with the Claude-on wording where it differs.
  */
 export function demoScript(): Promise<string[]> {
@@ -63,11 +63,11 @@ export function demoScript(): Promise<string[]> {
       v = buildView('script', s);
       steps.push({ step, before: prev, after: v });
     }
-    await s.act({ type: 'replay', decisionId: 'convert:EUR', tamper: true });
+    await s.act({ type: 'replay', decisionId: 'pay:PAY-114-FREIGHT', tamper: true });
     const end = buildView('script', s);
 
     const presenter = presenterName(process.env.RECKON_PRESENTER);
-    const variants: Opts[] = [{}, { airwallex: false, presenter }, { airwallex: false, presenter: null }];
+    const variants: Opts[] = [{}, { paypal: false, presenter }, { paypal: false, presenter: null }];
     const lines: string[] = [];
     const add = (beats: { text: string }[]) => beats.forEach((b) => lines.push(b.text));
     for (const o of variants) {

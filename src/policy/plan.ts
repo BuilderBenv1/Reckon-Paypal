@@ -170,7 +170,7 @@ export function plan(state: CashState, policy: Policy): Plan {
       amount: p.amount,
       currency: p.currency,
       amountUSD: usd,
-      execution: usd > policy.autonomousPaymentLimitUSD ? ('approval' as const) : ('auto' as const),
+      execution: usd > policy.autonomousPaymentLimitUSD[confidence] ? ('approval' as const) : ('auto' as const),
       rule: 'fund_by_unlock_value',
     };
     const rank = ranking.indexOf(r) + 1;
@@ -190,7 +190,9 @@ export function plan(state: CashState, policy: Policy): Plan {
     if (!blocked && usd <= spendable) {
       spendable = round2(spendable - usd);
       payNow.push(p);
-      decisions.push({ ...base, status: 'now', dependsOn: [], reason: `Pay ${fmt(p.amount, p.currency)} to ${p.supplier}: ${why}.` });
+      const limit = policy.autonomousPaymentLimitUSD[confidence];
+      const gate = base.execution === 'approval' ? ` It is over the ${fmt(limit, 'USD')} autonomous limit at ${confidence} forecast confidence, so it needs approval` : '';
+      decisions.push({ ...base, status: 'now', dependsOn: [], reason: `Pay ${fmt(p.amount, p.currency)} to ${p.supplier}: ${why}.${gate}` });
     } else {
       blocked = true;
       decisions.push({

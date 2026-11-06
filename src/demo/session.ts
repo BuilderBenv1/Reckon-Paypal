@@ -4,10 +4,10 @@ import chaseEmail from '../../data/emails/03-brightline-not-received.json' with 
 import remittanceEmail from '../../data/emails/04-harbour-remittance.json' with { type: 'json' };
 import { defaultPolicy, seedBalances, seedBook, seedRates } from '../domain/seed.js';
 import type { Email, EmailSignal } from '../domain/types.js';
-import { FakeAirwallex, type FakeSnapshot } from '../airwallex/fake.js';
-import { OperatingEnvelope, type EnvelopeSnapshot } from '../airwallex/envelope.js';
-import type { AirwallexPort, SandboxSimulator, TransferView } from '../airwallex/port.js';
-import { AirwallexRest } from '../airwallex/rest.js';
+import { FakeBank, type FakeSnapshot } from '../bank/fake.js';
+import { OperatingEnvelope, type EnvelopeSnapshot } from '../bank/envelope.js';
+import type { BankPort, SandboxSimulator, TransferView } from '../bank/port.js';
+import { PayPalRest } from '../paypal/rest.js';
 import { ClaudeReader, FixtureReader, type EmailReader } from '../agent/reader.js';
 import { ClaudeDrafter, TemplateDrafter, type Drafter } from '../agent/drafter.js';
 import { Reckon, type ReckonSnapshot } from '../agent/reckon.js';
@@ -19,9 +19,9 @@ import { buildReconFixture } from '../recon/fixture.js';
 import type { MatchResult } from '../recon/types.js';
 import { CHASED_PAYABLE, setupReturnedInstalment } from './incident.js';
 
-// One run of the Reckon story, saved between requests. Demo runs use an in-memory Airwallex and
+// One run of the Reckon story, saved between requests. Demo runs use an in-memory bank and
 // can be clicked through by anyone; live runs make real sandbox calls through the operating
-// envelope and receive Airwallex webhooks.
+// envelope and receive PayPal webhooks.
 
 export type Mode = 'demo' | 'live';
 
@@ -71,7 +71,7 @@ export interface SessionSnapshot {
   createdAt: string;
   done: StepId[];
   reckon: ReckonSnapshot;
-  awx: { kind: 'fake'; s: FakeSnapshot } | { kind: 'envelope'; s: EnvelopeSnapshot };
+  bank: { kind: 'fake'; s: FakeSnapshot } | { kind: 'envelope'; s: EnvelopeSnapshot };
   view: SessionView;
   claudeCalls: number;
 }
@@ -86,8 +86,8 @@ export function loadEmail(which: keyof typeof EMAILS): Email {
 }
 
 export interface SessionDeps {
-  /** Override the live Airwallex client (tests). */
-  live?: () => AirwallexPort & SandboxSimulator;
+  /** Override the live PayPal client (tests). */
+  live?: () => BankPort & SandboxSimulator;
   claude?: boolean;
   reader?: EmailReader;
   drafter?: Drafter;
@@ -95,23 +95,23 @@ export interface SessionDeps {
 }
 
 const claudeConfigured = () => !!process.env.ANTHROPIC_API_KEY;
-export const liveConfigured = () => !!process.env.AWX_CLIENT_ID && !!process.env.AWX_API_KEY;
+export const liveConfigured = () => !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_CLIENT_SECRET;
 
-type AwxAdapter = (FakeAirwallex | OperatingEnvelope) & AirwallexPort & SandboxSimulator;
+type BankAdapter = (FakeBank | OperatingEnvelope) & BankPort & SandboxSimulator;
 
 export class Session {
   private constructor(
-    public snap: Omit<SessionSnapshot, 'reckon' | 'awx'>,
+    public snap: Omit<SessionSnapshot, 'reckon' | 'bank'>,
     public reckon: Reckon,
-    public awx: AwxAdapter,
+    public bank: BankAdapter,
     private readonly drafter: Drafter,
     private readonly usesClaude: boolean,
   ) {}
 
   static async create(mode: Mode, deps: SessionDeps = {}): Promise<Session> {
     const clock = deps.clock ?? (() => new Date().toISOString());
-    const awx: AwxAdapter =
-      mode === 'demo' ? new FakeAirwallex({ ...seedBalances }, seedRates) : new OperatingEnvelope((deps.live ?? AirwallexRest.fromEnv)(), seedBalances);
+    const bank: BankAdapter =
+      mode === 'demo' ? new FakeBank({ ...seedBalances }, seedRates) : new OperatingEnvelope((deps.live ?? PayPalRest.fromEnv)(), seedBalances);
     const s = Session.wire(
       {
         version: 1,
@@ -121,8 +121,8 @@ export class Session {
         view: { recon: [], last: null, incident: null, replays: [], signals: [], drafts: {} },
         claudeCalls: 0,
       },
-      (reader) => new Reckon(initialState(structuredClone(seedBook), { ...seedBalances }, seedRates), defaultPolicy, awx, reader, clock),
-      awx,
+      (reader) => new Reckon(initialState(structuredClone(seedBook), { ...seedBalances }, seedRates), defaultPolicy, bank, reader, clock),
+      bank,
       deps,
     );
     await s.morning();
@@ -131,18 +131,18 @@ export class Session {
 
   static restore(snap: SessionSnapshot, deps: SessionDeps = {}): Session {
     const clock = deps.clock ?? (() => new Date().toISOString());
-    const awx: AwxAdapter =
-      snap.awx.kind === 'fake'
-        ? FakeAirwallex.restore(snap.awx.s, seedRates)
-        : OperatingEnvelope.restore((deps.live ?? AirwallexRest.fromEnv)(), snap.awx.s);
-    const { reckon: r, awx: _a, ...rest } = snap;
-    return Session.wire(rest, (reader) => Reckon.restore(r, defaultPolicy, awx, reader, clock), awx, deps);
+    const bank: BankAdapter =
+      snap.bank.kind === 'fake'
+        ? FakeBank.restore(snap.bank.s, seedRates)
+        : OperatingEnvelope.restore((deps.live ?? PayPalRest.fromEnv)(), snap.bank.s);
+    const { reckon: r, bank: _a, ...rest } = snap;
+    return Session.wire(rest, (reader) => Reckon.restore(r, defaultPolicy, bank, reader, clock), bank, deps);
   }
 
   private static wire(
-    snap: Omit<SessionSnapshot, 'reckon' | 'awx'>,
+    snap: Omit<SessionSnapshot, 'reckon' | 'bank'>,
     makeReckon: (reader: EmailReader) => Reckon,
-    awx: AwxAdapter,
+    bank: BankAdapter,
     deps: SessionDeps,
   ): Session {
     const usesClaude = deps.claude ?? claudeConfigured();
@@ -158,12 +158,12 @@ export class Session {
       },
     };
     const drafter = deps.drafter ?? (usesClaude ? new ClaudeDrafter() : new TemplateDrafter());
-    session = new Session(snap, makeReckon(reader), awx, drafter, usesClaude);
+    session = new Session(snap, makeReckon(reader), bank, drafter, usesClaude);
     return session;
   }
 
   snapshot(): SessionSnapshot {
-    return structuredClone({ ...this.snap, reckon: this.reckon.snapshot(), awx: this.awx instanceof FakeAirwallex ? { kind: 'fake' as const, s: this.awx.snapshot() } : { kind: 'envelope' as const, s: this.awx.snapshot() } });
+    return structuredClone({ ...this.snap, reckon: this.reckon.snapshot(), bank: this.bank instanceof FakeBank ? { kind: 'fake' as const, s: this.bank.snapshot() } : { kind: 'envelope' as const, s: this.bank.snapshot() } });
   }
 
   get mode(): Mode {
@@ -174,7 +174,7 @@ export class Session {
     return this.usesClaude && this.snap.claudeCalls < CLAUDE_CALL_LIMIT;
   }
 
-  /** Airwallex object ids this run owns, so webhooks can find it. */
+  /** PayPal object ids (invoices, payout batches) this run owns, so webhooks can find it. */
   refs(): string[] {
     const ids = new Set<string>();
     for (const linkId of this.reckon.links.values()) ids.add(linkId);
@@ -256,15 +256,15 @@ export class Session {
         this.reckon.approve(action.decisionId, 'MD');
         const r = await this.reckon.run();
         await this.draftOutbox();
-        if (action.decisionId.startsWith('convert:')) this.mark('approve');
+        if (action.decisionId.startsWith('pay:') || action.decisionId.startsWith('convert:')) this.mark('approve');
         this.result(action.type, `MD approved ${action.decisionId} exactly as shown. Executed ${r.executed.length} decisions.`, r.executed, r.changes);
         return;
       }
       case 'customer_pays': {
-        if (!(this.awx instanceof FakeAirwallex)) throw new Error('In a live run the customer pays the real payment link.');
+        if (!(this.bank instanceof FakeBank)) throw new Error('In a live run the customer pays the real PayPal invoice.');
         const linkId = this.reckon.links.get('REC-121-INV');
         if (!linkId) throw new Error('No payment link has been sent yet.');
-        await this.awx.payLink(linkId);
+        await this.bank.payLink(linkId);
         await this.afterLinkCheck();
         return;
       }
@@ -280,7 +280,7 @@ export class Session {
         return;
       }
       case 'chase': {
-        if (this.reckon.ledger.attemptsFor(CHASED_PAYABLE).length === 0) await setupReturnedInstalment(this.reckon, this.awx);
+        if (this.reckon.ledger.attemptsFor(CHASED_PAYABLE).length === 0) await setupReturnedInstalment(this.reckon, this.bank);
         await this.ingest(loadEmail('chase'));
         const out = await this.reckon.handleNotReceived(CHASED_PAYABLE);
         const again = await this.reckon.handleNotReceived(CHASED_PAYABLE);
@@ -295,7 +295,7 @@ export class Session {
           action.type,
           out.outcome === 'replaced'
             ? `The original transfer came back (account closed). Reckon sent one replacement; when the supplier chased again it found that replacement ${again.outcome === 'in_flight' ? 'already on its way' : again.outcome.replace(/_/g, ' ')} and paid nothing.`
-            : `Checked Airwallex first: the payment is ${out.outcome.replace(/_/g, ' ')}. No new payment.`,
+            : `Checked PayPal first: the payment is ${out.outcome.replace(/_/g, ' ')}. No new payment.`,
           [],
           [],
         );
@@ -304,7 +304,7 @@ export class Session {
       case 'replay': {
         const rec = this.reckon.ledger.latestRecord(action.decisionId);
         if (!rec) throw new Error(`No record of ${action.decisionId}`);
-        const target = action.tamper ? { ...structuredClone(rec), policy: { ...rec.policy, autonomousFxLimitUSD: { high: 50000, low: 50000 } } } : rec;
+        const target = action.tamper ? { ...structuredClone(rec), policy: { ...rec.policy, autonomousPaymentLimitUSD: { high: 50000, low: 50000 } } } : rec;
         const r = replayRecord(target);
         this.snap.view.replays = [
           { decisionId: action.decisionId, tampered: !!action.tamper, ok: r.ok, ...(r.ok ? {} : { reason: r.reason, detail: r.detail }), hash: rec.hash },
@@ -336,12 +336,12 @@ export class Session {
   private async afterLinkCheck() {
     const paid = await this.reckon.checkLinks();
     if (!paid.length) {
-      this.result('check_links', 'Payment link not paid yet.', [], []);
+      this.result('check_links', 'Invoice not paid yet.', [], []);
       return;
     }
     const r = await this.reckon.run();
     await this.draftOutbox();
     this.mark('customer_pays');
-    this.result('customer_pays', `Customer paid early by payment link. Replanned and executed ${r.executed.length} decisions.`, r.executed, r.changes);
+    this.result('customer_pays', `Customer paid the early-pay invoice on PayPal. Replanned and executed ${r.executed.length} decisions.`, r.executed, r.changes);
   }
 }

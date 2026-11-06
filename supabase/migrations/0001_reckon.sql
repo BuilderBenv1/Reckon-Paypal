@@ -15,7 +15,7 @@ create table if not exists public.reckon_runs (
 create index if not exists reckon_runs_refs_idx on public.reckon_runs using gin (refs);
 create index if not exists reckon_runs_live_idx on public.reckon_runs (mode, updated_at desc);
 
--- Airwallex webhook events, deduplicated on the event id (delivery is at-least-once).
+-- PayPal webhook events, deduplicated on the event id (delivery is at-least-once).
 create table if not exists public.reckon_webhook_events (
   id text primary key,
   name text not null,

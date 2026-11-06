@@ -85,8 +85,8 @@ export interface Policy {
   receiptConfidenceThreshold: number;
   /** Largest FX conversion (USD) the agent may book alone, by forecast confidence. */
   autonomousFxLimitUSD: { high: number; low: number };
-  /** Largest single payment (USD) the agent may send alone. */
-  autonomousPaymentLimitUSD: number;
+  /** Largest single payment (USD) the agent may send alone, by forecast confidence. */
+  autonomousPaymentLimitUSD: { high: number; low: number };
   earlyPayDiscount: number;
   /** Largest early-payment discount (USD) the agent may offer alone. */
   autonomousDiscountLimitUSD: number;

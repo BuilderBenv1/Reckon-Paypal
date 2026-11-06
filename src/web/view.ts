@@ -113,7 +113,7 @@ export function buildView(id: string, session: Session): RunView {
     const m = r.outbox.find((o) => o.decisionId === `early_pay_link:${receivableId}`);
     return m?.body.match(/https?:\/\/\S+/)?.[0] ?? null;
   };
-  const convertPending = decisions.find((d) => d.kind === 'convert' && d.execution === 'approval' && !d.approved && !d.done);
+  const approvalPending = decisions.find((d) => (d.kind === 'pay' || d.kind === 'convert') && d.execution === 'approval' && d.status === 'now' && !d.approved && !d.done);
 
   const steps: StepView[] = [
     { id: 'morning', title: 'Morning read', detail: "Reads the finance team's sheet, balances and overnight bank lines.", action: null },
@@ -121,22 +121,22 @@ export function buildView(id: string, session: Session): RunView {
     { id: 'run_0900', title: '09:00 cut-off', detail: 'Reckon does everything policy allows on its own and sends the rest to the MD.', action: { type: 'run' } },
     {
       id: 'approve',
-      title: 'MD approves the conversion',
+      title: 'MD approves the freight payout',
       detail: 'Approval is tied to the exact amount shown. If anything changes, it needs approving again.',
-      action: convertPending ? { type: 'approve', decisionId: convertPending.id } : null,
+      action: approvalPending ? { type: 'approve', decisionId: approvalPending.id } : null,
     },
     session.mode === 'demo'
-      ? { id: 'customer_pays', title: 'Customer takes the early-pay offer', detail: 'They pay the Airwallex payment link at the 1.5% discount. Reckon replans by itself.', action: { type: 'customer_pays' } }
+      ? { id: 'customer_pays', title: 'Customer takes the early-pay offer', detail: 'They pay the PayPal invoice at the 1.5% discount. Reckon replans by itself.', action: { type: 'customer_pays' } }
       : {
           id: 'customer_pays',
-          title: 'Pay the customer link yourself',
-          detail: 'Open it and pay with test card 4035501000000008, any future expiry and CVC. The webhook replans the agent.',
+          title: 'Pay the customer invoice yourself',
+          detail: 'Open the PayPal invoice and pay it signed in as your sandbox personal account. The webhook replans the agent.',
           action: { type: 'check_links' },
           ...(linkUrl('REC-121-INV') ? { link: linkUrl('REC-121-INV')! } : {}),
         },
-    { id: 'split_reply', title: 'Supplier agrees to split', detail: 'Half now, half in two weeks. Reckon converts only the GBP it needs and pays.', action: { type: 'split_reply' } },
-    { id: 'chase', title: "Supplier chases last week's payment", detail: 'Reckon checks Airwallex before paying again. Never pays twice.', action: { type: 'chase' } },
-    { id: 'replay', title: 'Prove a decision', detail: 'Re-run the EUR conversion from its stored inputs, then try a tampered copy.', action: { type: 'replay', decisionId: 'convert:EUR' } },
+    { id: 'split_reply', title: 'Supplier agrees to split', detail: 'Half now, half in two weeks. Reckon sends the first half by PayPal Payouts.', action: { type: 'split_reply' } },
+    { id: 'chase', title: "Supplier chases last week's payment", detail: 'Reckon checks PayPal before paying again. Never pays twice.', action: { type: 'chase' } },
+    { id: 'replay', title: 'Prove a decision', detail: 'Re-run the freight payout decision from its stored inputs, then try a tampered copy.', action: { type: 'replay', decisionId: 'pay:PAY-114-FREIGHT' } },
   ].map((s) => ({ ...s, state: 'later' as const })) as StepView[];
   let nextSet = false;
   for (const s of steps) {

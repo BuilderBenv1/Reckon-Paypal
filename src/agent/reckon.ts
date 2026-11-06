@@ -1,6 +1,6 @@
 import type { Email, EmailSignal, Payable, Policy } from '../domain/types.js';
 import { payees } from '../domain/payees.js';
-import { isDeadTransfer, type AirwallexPort, type TransferView } from '../airwallex/port.js';
+import { isDeadTransfer, type BankPort, type TransferView } from '../bank/port.js';
 import { Ledger, DuplicatePaymentError, type LedgerSnapshot, type PaymentAttempt } from '../ledger/ledger.js';
 import { plan as buildPlan, type Decision, type Plan } from '../policy/plan.js';
 import { diffPlans, type DecisionChange } from '../policy/diff.js';
@@ -53,7 +53,7 @@ export class Reckon {
   constructor(
     public state: CashState,
     readonly policy: Policy,
-    private readonly awx: AirwallexPort,
+    private readonly bank: BankPort,
     private readonly reader: EmailReader,
     private readonly clock: () => string,
     private readonly newId: () => string = () => crypto.randomUUID(),
@@ -74,13 +74,13 @@ export class Reckon {
   static restore(
     s: ReckonSnapshot,
     policy: Policy,
-    awx: AirwallexPort,
+    bank: BankPort,
     reader: EmailReader,
     clock: () => string,
     newId?: () => string,
   ): Reckon {
     const c = structuredClone(s);
-    const r = new Reckon(c.state, policy, awx, reader, clock, newId);
+    const r = new Reckon(c.state, policy, bank, reader, clock, newId);
     r.ledger = Ledger.restore(c.ledger);
     r.outbox = c.outbox;
     r.log = c.log;
@@ -93,10 +93,10 @@ export class Reckon {
   async syncTransfer(transferId: string): Promise<TransferView | null> {
     const attempt = this.ledger.attempts.find((a) => a.transferId === transferId);
     if (!attempt) return null;
-    const t = await this.awx.getTransfer(transferId);
+    const t = await this.bank.getTransfer(transferId);
     if (t.status !== attempt.status) {
       this.ledger.updateAttempt(attempt.requestId, { status: t.status, ...(t.failureType ? { failureType: t.failureType } : {}) });
-      this.note('execute', `${attempt.payableId}: Airwallex reports ${t.status}${t.failureType ? ` (${t.failureType})` : ''}.`);
+      this.note('execute', `${attempt.payableId}: PayPal reports ${t.status}${t.failureType ? ` (${t.failureType})` : ''}.`);
     }
     if (t.status === 'PAID' || isDeadTransfer(t.status)) await this.refreshBalances();
     return t;
@@ -107,7 +107,7 @@ export class Reckon {
   }
 
   async refreshBalances() {
-    this.state.balances = await this.awx.balances();
+    this.state.balances = await this.bank.balances();
   }
 
   /** Plans from the current state, records every decision, and returns what changed. */
@@ -172,8 +172,8 @@ export class Reckon {
     const book = resolveBook(this.state, this.policy.splitShareNow);
     switch (d.kind) {
       case 'convert': {
-        const quote = await this.awx.quote('USD', d.currency, d.amount);
-        await this.awx.convert({ requestId: this.newId(), quote });
+        const quote = await this.bank.quote('USD', d.currency, d.amount);
+        await this.bank.convert({ requestId: this.newId(), quote });
         await this.refreshBalances();
         this.note('execute', `Converted to ${fmt(d.amount, d.currency)} at ${quote.clientRate.toFixed(4)}.`);
         return;
@@ -194,12 +194,12 @@ export class Reckon {
       }
       case 'early_pay_link': {
         const r = book.receivables.find((x) => x.id === d.target)!;
-        const link = await this.awx.createPaymentLink({ title: `${r.customer}: ${r.milestone}`, amount: d.amount, currency: d.currency, reference: r.id });
+        const link = await this.bank.createPaymentLink({ title: `${r.customer}: ${r.milestone}`, amount: d.amount, currency: d.currency, reference: r.id });
         try {
-          await this.awx.notifyShopper(link.id, r.customerEmail);
+          await this.bank.notifyShopper(link.id, r.customerEmail);
         } catch (err) {
           // The link still works; the offer email in the outbox carries it either way.
-          this.note('link', `Airwallex could not email ${r.customerEmail} (${(err as Error).message.slice(0, 80)}); link sent in our own email.`);
+          this.note('link', `PayPal could not email ${r.customerEmail} (${(err as Error).message.slice(0, 80)}); link sent in our own email.`);
         }
         this.links.set(r.id, link.id);
         this.outbox.push({ decisionId: d.id, ...earlyPayOffer(r, d.amount, link.url, this.policy) });
@@ -221,15 +221,15 @@ export class Reckon {
     if (!payee) throw new Error(`No bank details for ${p.supplier}`);
     const requestId = this.newId();
     this.ledger.beginPayment(p.id, requestId, this.clock(), replaces);
-    const beneficiaryId = await this.awx.ensureBeneficiary(payee);
+    const beneficiaryId = await this.bank.ensureBeneficiary(payee);
     const reference = p.id;
     this.ledger.updateAttempt(requestId, { details: { supplier: p.supplier, beneficiaryId, amount: p.amount, currency: p.currency, method: p.method, reference } });
     let t: TransferView;
     try {
-      t = await this.awx.createTransfer({ requestId, beneficiaryId, amount: p.amount, currency: p.currency, method: p.method, reference, reason: payee.reason });
+      t = await this.bank.createTransfer({ requestId, beneficiaryId, amount: p.amount, currency: p.currency, method: p.method, reference, reason: payee.reason });
     } catch (err) {
       // Ambiguous failure: look the request up before anything else, so a retry can't pay twice.
-      const found = await this.awx.findTransferByRequestId(requestId);
+      const found = await this.bank.findTransferByRequestId(requestId);
       if (!found) {
         this.ledger.updateAttempt(requestId, { status: 'CANCELLED', failureType: 'NOT_CREATED' });
         throw err;
@@ -261,7 +261,7 @@ export class Reckon {
     const paid: string[] = [];
     for (const [receivableId, linkId] of this.links) {
       if (this.state.earlyPayLinks[receivableId] !== 'sent') continue;
-      const link = await this.awx.getPaymentLink(linkId);
+      const link = await this.bank.getPaymentLink(linkId);
       if (link.status === 'PAID') {
         this.state.earlyPayLinks[receivableId] = 'paid';
         paid.push(receivableId);
@@ -274,16 +274,16 @@ export class Reckon {
 
   /**
    * A supplier says a payment never arrived. Check the real transfer state before doing
-   * anything; replace only a payment Airwallex has definitely cancelled, and record both.
+   * anything; replace only a payment PayPal has definitely returned or failed, and record both.
    */
   async handleNotReceived(payableId: string): Promise<IncidentOutcome> {
     const attempts = this.ledger.attemptsFor(payableId);
     const last = attempts.at(-1);
     if (!last?.transferId || !last.details) return { outcome: 'blocked', reason: `No record of a payment for ${payableId}; needs a person.` };
-    const t = await this.awx.getTransfer(last.transferId);
+    const t = await this.bank.getTransfer(last.transferId);
     this.ledger.updateAttempt(last.requestId, { status: t.status, ...(t.failureType ? { failureType: t.failureType } : {}) });
     if (t.status === 'PAID') {
-      this.note('incident', `${payableId}: Airwallex shows PAID; replied with the transfer reference, no new payment.`);
+      this.note('incident', `${payableId}: PayPal shows PAID; replied with the transfer reference, no new payment.`);
       return { outcome: 'already_paid', transfer: t };
     }
     if (!isDeadTransfer(t.status)) {

@@ -78,7 +78,7 @@ export function Dashboard({ initialRun, info: initialInfo }: { initialRun: RunVi
     }
   }, []);
 
-  /** The guided demo. With an access code it runs on the real Airwallex sandbox instead. */
+  /** The guided demo. With an access code it runs on the real PayPal sandbox instead. */
   const runTour = useCallback(async (liveCode?: string) => {
     const live = liveCode !== undefined;
     narrator.current?.stop();
@@ -88,14 +88,14 @@ export function Dashboard({ initialRun, info: initialInfo }: { initialRun: RunVi
     n.live = live;
     n.unlock();
     narrator.current = n;
-    setTour({ caption: live ? 'Starting a live run on the Airwallex sandbox…' : 'Starting a fresh demo run…', paused: false, muted: false });
-    const working = () => live && setTour((t) => (t ? { ...t, caption: 'Working on the Airwallex sandbox…' } : t));
+    setTour({ caption: live ? 'Starting a live run on the PayPal sandbox…' : 'Starting a fresh demo run…', paused: false, muted: false });
+    const working = () => live && setTour((t) => (t ? { ...t, caption: 'Working on the PayPal sandbox…' } : t));
     document.body.classList.add('touring');
-    // ?short skips the longer spoken introduction. ?handoff is event mode: no Airwallex, "Ben has
+    // ?short skips the longer spoken introduction. ?handoff is event mode: no PayPal, "Ben has
     // just built", and it hands over to the presenter at the end.
     const q = new URLSearchParams(window.location.search);
     const short = q.has('short');
-    const o: Opts = q.has('handoff') ? { airwallex: false, presenter: info.presenter } : {};
+    const o: Opts = q.has('handoff') ? { paypal: false, presenter: info.presenter } : {};
     try {
       let v = await start(live ? 'live' : 'demo', liveCode);
       if (!v) return;
@@ -131,7 +131,7 @@ export function Dashboard({ initialRun, info: initialInfo }: { initialRun: RunVi
       }
       await press(n, '[data-tour-step="tamper"]');
       working();
-      const tampered = await act({ type: 'replay', decisionId: 'convert:EUR', tamper: true }, 'replay-convert:EUR-true');
+      const tampered = await act({ type: 'replay', decisionId: 'pay:PAY-114-FREIGHT', tamper: true }, 'replay-pay:PAY-114-FREIGHT-true');
       if (tampered) {
         v = tampered;
         await play(n, afterTamper(v, o));
@@ -217,7 +217,7 @@ export function Dashboard({ initialRun, info: initialInfo }: { initialRun: RunVi
         <div className="topbar-actions">
           <span className="mode" data-mode={run.mode}>
             <span className="mode-dot" aria-hidden />
-            {run.mode === 'live' ? 'Live Airwallex sandbox' : 'Demo: simulated Airwallex'}
+            {run.mode === 'live' ? 'Live PayPal sandbox' : 'Demo: simulated PayPal'}
           </span>
           {run.mode === 'demo' && !tour && (
             <button className="btn btn-agent" disabled={!!busy} onClick={() => runTour()}>
@@ -336,7 +336,7 @@ function TourBar(p: {
       </p>
       {p.link && (
         <a className="btn btn-agent tourbar-link" href={p.link} target="_blank" rel="noreferrer">
-          Open the Airwallex payment link
+          Open the PayPal invoice
         </a>
       )}
     </div>
@@ -366,14 +366,14 @@ function Landing({
       <header className="topbar">
         <div className="brand">
           <span className="brand-name">Reckon</span>
-          <span className="brand-sub">A treasury agent for project businesses, on Airwallex</span>
+          <span className="brand-sub">A treasury agent for project businesses, on PayPal</span>
         </div>
       </header>
       <section className="landing">
         <h1>Most cash agents decide who waits. Reckon closes the gap.</h1>
         <p className="landing-lede">
           It reads the finance team&apos;s own sheet, ranks every payment by what it unlocks on its project, holds spend that has no budget, and
-          prices every way to close a shortfall, including getting a customer to pay early by Airwallex payment link. Every decision can be replayed
+          prices every way to close a shortfall, including getting a customer to pay early by PayPal invoice. Every decision can be replayed
           from its inputs.
         </p>
         <div className="landing-actions">
@@ -525,7 +525,7 @@ function Brief({ run, busy, onApprove }: { run: RunView; busy: string | null; on
                   )}
                 </div>
                 {approvable(d) ? (
-                  <button className="btn btn-primary" data-tour-step={d.kind === 'convert' ? 'approve' : undefined} disabled={!!busy} onClick={() => onApprove(d.id)}>
+                  <button className="btn btn-primary" data-tour-step={d.kind === 'convert' || d.kind === 'pay' ? 'approve' : undefined} disabled={!!busy} onClick={() => onApprove(d.id)}>
                     {busy === `approve-${d.id}` ? 'Approving…' : 'Approve exactly this'}
                   </button>
                 ) : (
@@ -666,7 +666,7 @@ function Payments({ run }: { run: RunView }) {
     <section data-tour="payments" aria-labelledby="pay-title">
       <div className="section-head">
         <h2 id="pay-title">Money moved</h2>
-        <span className="section-note">{run.mode === 'live' ? 'Real Airwallex sandbox transfers' : 'Simulated transfers'}</span>
+        <span className="section-note">{run.mode === 'live' ? 'Real PayPal sandbox payouts' : 'Simulated payouts'}</span>
       </div>
       {run.payments.length === 0 && run.links.length === 0 ? (
         <p className="muted">Nothing has gone out yet.</p>
@@ -884,7 +884,7 @@ function Steps({ run, busy, onAct }: { run: RunView; busy: string | null; onAct:
 }
 
 function Proof({ run, busy, onReplay }: { run: RunView; busy: string | null; onReplay: (id: string, tamper: boolean) => void }) {
-  const target = [...run.doneToday, ...run.decisions].find((d) => d.kind === 'convert') ?? run.decisions[0];
+  const target = [...run.doneToday, ...run.decisions].find((d) => d.id === 'pay:PAY-114-FREIGHT') ?? run.decisions[0];
   return (
     <section className="proof" data-tour="proof" aria-labelledby="proof-title">
       <div className="section-head">

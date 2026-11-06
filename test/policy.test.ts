@@ -56,7 +56,7 @@ describe('closing the gap', () => {
 
   it('picks the cheapest levers once the receipt slips, and closes the gap', () => {
     const p = plan(delayed(), defaultPolicy);
-    expect(p.summary.gapUSD).toBeCloseTo(3229.01, 2);
+    expect(p.summary.gapUSD).toBeCloseTo(3220, 2);
     expect(p.decisions.filter((d) => ['defer', 'ask_split', 'early_pay_link'].includes(d.kind)).map((d) => d.id)).toEqual([
       'defer:PAY-OH-SAAS', 'ask_split:PAY-121-COMP', 'early_pay_link:REC-121-INV',
     ]);
@@ -84,15 +84,17 @@ describe('closing the gap', () => {
   });
 });
 
-describe('FX', () => {
-  it('converts only what today\'s payments need, SWIFT fee included', () => {
-    const c = plan(fresh(), defaultPolicy).decisions.find((d) => d.id === 'convert:EUR')!;
-    expect(c.amount).toBeCloseTo(5400 + 12.85 - 2000, 2);
+describe('payment limits', () => {
+  it('runs in one currency on PayPal: no conversions at all', () => {
+    expect(plan(fresh(), defaultPolicy).decisions.some((d) => d.kind === 'convert')).toBe(false);
+    expect(plan(delayed(), defaultPolicy).decisions.some((d) => d.kind === 'convert')).toBe(false);
   });
 
-  it('lowers the autonomous FX limit when forecast confidence drops', () => {
-    expect(plan(fresh(), defaultPolicy).decisions.find((d) => d.id === 'convert:EUR')?.execution).toBe('auto');
-    expect(plan(delayed(), defaultPolicy).decisions.find((d) => d.id === 'convert:EUR')?.execution).toBe('approval');
+  it('lowers the autonomous payment limit when forecast confidence drops', () => {
+    expect(plan(fresh(), defaultPolicy).decisions.find((d) => d.id === 'pay:PAY-114-FREIGHT')?.execution).toBe('auto');
+    const freight = plan(delayed(), defaultPolicy).decisions.find((d) => d.id === 'pay:PAY-114-FREIGHT')!;
+    expect(freight.execution).toBe('approval');
+    expect(freight.reason).toMatch(/over the USD 5,000 autonomous limit at low forecast confidence/);
   });
 });
 
@@ -101,9 +103,9 @@ describe('diff and replay', () => {
     const changes = diffPlans(plan(fresh(), defaultPolicy), plan(delayed(), defaultPolicy));
     expect(changes.map((c) => `${c.change}:${c.id}`)).toEqual([
       'added:ask_split:PAY-121-COMP',
-      'changed:convert:EUR',
       'added:defer:PAY-OH-SAAS',
       'added:early_pay_link:REC-121-INV',
+      'changed:pay:PAY-114-FREIGHT',
       'changed:pay:PAY-121-COMP',
       'removed:pay:PAY-OH-SAAS',
     ]);
@@ -115,11 +117,11 @@ describe('diff and replay', () => {
 
   it('replays a stored decision to the identical answer and detects tampering', () => {
     const s = delayed();
-    const d = plan(s, defaultPolicy).decisions.find((x) => x.id === 'convert:EUR')!;
+    const d = plan(s, defaultPolicy).decisions.find((x) => x.id === 'pay:PAY-114-FREIGHT')!;
     const rec = recordDecision(s, defaultPolicy, d, 'genesis', '2026-11-02T09:00:00Z');
     expect(replay(rec).ok).toBe(true);
     const tampered = structuredClone(rec);
-    tampered.policy.autonomousFxLimitUSD.low = 10000;
+    tampered.policy.autonomousPaymentLimitUSD.low = 10000;
     expect(replay(tampered)).toMatchObject({ ok: false, reason: 'tampered' });
   });
 });

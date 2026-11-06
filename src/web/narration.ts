@@ -40,14 +40,14 @@ const byId = (v: RunView, id: string) => all(v).find((d) => d.id === id);
 const byKind = (v: RunView, kind: DecisionView['kind']) => all(v).find((d) => d.kind === kind);
 
 /**
- * Who it's for. The default names Airwallex (the hackathon judges want to see it). Event mode,
+ * Who it's for. The default names PayPal (the hackathon judges want to see it). Event mode,
  * opened with ?handoff, keeps it generic, says the presenter has just built it, and hands over.
  */
 export interface Opts {
-  airwallex?: boolean;
+  paypal?: boolean;
   presenter?: string | null;
 }
-const brand = (o: Opts) => o.airwallex !== false;
+const brand = (o: Opts) => o.paypal !== false;
 
 export function intro(v: RunView, o: Opts = {}): Beat[] {
   const s = v.summary;
@@ -58,7 +58,7 @@ export function intro(v: RunView, o: Opts = {}): Beat[] {
       extra: true,
       text:
         `Hi, I'm an AI voice, and I'm going to show you Reckon${name ? `, something ${name} has just built` : ''}. It's an AI agent that looks after a company's cash` +
-        (brand(o) ? ', and it runs on Airwallex.' : '.'),
+        (brand(o) ? ', and it runs on PayPal.' : '.'),
     },
     {
       focus: 'hero',
@@ -76,10 +76,10 @@ export function intro(v: RunView, o: Opts = {}): Beat[] {
         "Let's see it run on a Monday morning. " +
         (v.mode === 'demo'
           ? brand(o)
-            ? 'This is a demo, so Airwallex is simulated and no real money moves.'
+            ? 'This is a demo, so PayPal is simulated and no real money moves.'
             : 'This is a demo, so no real money moves.'
           : brand(o)
-            ? 'This run is on the real Airwallex sandbox, so every payment, currency exchange and payment link you see is real, just with test money.'
+            ? 'This run is on the real PayPal sandbox, so every payout and invoice you see is real, just with test money.'
             : 'This run uses a real test bank account, so every payment you see really happens, just with test money.'),
     },
   ];
@@ -127,8 +127,8 @@ export function before(step: TourStep, v: RunView, o: Opts = {}): Beat[] {
       return [{ focus: 'brief', text: 'The boss approves it with one click. That approval only covers that exact amount.' }];
     case 'customer_pays':
       if (v.mode === 'live')
-        return [{ focus: 'payments', text: `This is a real ${brand(o) ? 'Airwallex ' : ''}payment link. Let's pay it with a test card, and Reckon will spot the payment by itself.` }];
-      return [{ focus: 'payments', text: brand(o) ? 'Now the customer pays early, through the Airwallex payment link.' : 'Now the customer pays early, through the payment link.' }];
+        return [{ focus: 'payments', text: `This is a real ${brand(o) ? 'PayPal ' : ''}invoice. Let's pay it as the customer, and Reckon will spot the payment by itself.` }];
+      return [{ focus: 'payments', text: brand(o) ? 'Now the customer pays early, through the PayPal invoice.' : 'Now the customer pays early, through the invoice.' }];
     case 'split_reply':
       return [{ focus: 'steps', text: 'The supplier agrees to split their bill.' }];
     case 'chase':
@@ -167,12 +167,12 @@ export function after(step: TourStep, prev: RunView, v: RunView, o: Opts = {}): 
             (s.gapAfterLeversUSD <= 0 ? ` That covers the gap for ${say(s.leversCostUSD)}.` : ''),
         });
       }
-      const was = byId(prev, 'convert:EUR');
-      const now = byId(v, 'convert:EUR');
+      const was = byId(prev, 'pay:PAY-114-FREIGHT');
+      const now = byId(v, 'pay:PAY-114-FREIGHT');
       if (was?.execution === 'auto' && now?.execution === 'approval') {
         beats.push({
           focus: 'brief',
-          text: "It also needs to change some dollars into euros. Because things are less certain now, it asks the boss first.",
+          text: "The freight payment is now over what Reckon may send alone while things are less certain, so it asks the boss first.",
         });
       }
       return beats;
@@ -185,7 +185,7 @@ export function after(step: TourStep, prev: RunView, v: RunView, o: Opts = {}): 
     case 'approve': {
       const paid = (v.last?.executed ?? []).filter((id) => id.startsWith('pay:')).map((id) => id.slice(4));
       const who = v.payments.filter((p) => paid.includes(p.payableId)).map((p) => spoken(p.supplier));
-      beats.push({ focus: 'payments', text: `Reckon changes the money${who.length ? ` and pays ${listJoin(who)} straight away` : ''}.` });
+      beats.push({ focus: 'payments', text: who.length ? `Reckon pays ${listJoin(who)} straight away.` : 'Reckon carries it out straight away.' });
       return beats;
     }
     case 'customer_pays': {
@@ -205,8 +205,8 @@ export function after(step: TourStep, prev: RunView, v: RunView, o: Opts = {}): 
       const inc = v.incident;
       if (inc && inc.outcome === 'replaced' && inc.original) {
         const ft = inc.original.failureType ?? '';
-        const why = ft === 'ACCOUNT_CLOSED' ? ', because the account was closed' : '';
-        beats.push({ focus: 'payments', text: `Reckon checks with ${brand(o) ? 'Airwallex' : 'the bank'} first. The payment bounced${why}, so it sends a replacement.` });
+        const why = ft === 'ACCOUNT_CLOSED' ? ', because the account was closed' : ft === 'RETURNED' ? ', unclaimed' : '';
+        beats.push({ focus: 'payments', text: `Reckon checks with ${brand(o) ? 'PayPal' : 'the bank'} first. The payment came back${why}, so it sends a replacement.` });
         beats.push({ focus: 'payments', text: "When the supplier chases again, Reckon sees the replacement is already on its way, and doesn't pay twice." });
       } else if (v.last) {
         beats.push({ focus: 'payments', text: v.last.headline });

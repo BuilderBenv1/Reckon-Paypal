@@ -1,6 +1,6 @@
 import type { Balances, Currency } from '../domain/types.js';
 import type { PayeeDetails } from '../domain/payees.js';
-import { isDeadTransfer, type AirwallexPort, type FxQuote, type PaymentLinkView, type SandboxSimulator, type TransferView } from './port.js';
+import { isDeadTransfer, type BankPort, type FxQuote, type PaymentLinkView, type SandboxSimulator, type TransferView } from './port.js';
 
 const SWIFT_FEE_EUR = 12.85;
 
@@ -14,15 +14,15 @@ export interface EnvelopeSnapshot {
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * Real Airwallex calls, story-sized balances.
+ * Real PayPal calls, story-sized balances.
  *
- * A new sandbox starts with millions in every currency, so the agent would never see a cash
- * gap. This wrapper sends every call to the real sandbox but reports an operating balance that
- * starts at the business's story figures and moves with each real conversion, transfer,
- * cancellation, deposit and paid link. The planner reasons over the envelope; the sandbox
+ * A sandbox business account can hold far more than the story's business, so the agent would
+ * never see a cash gap. This wrapper sends every call to the real sandbox but reports an operating balance that
+ * starts at the business's story figures and moves with each real payout, returned payout
+ * and paid invoice. The planner reasons over the envelope; the sandbox
  * records the real money movements.
  */
-export class OperatingEnvelope implements AirwallexPort, SandboxSimulator {
+export class OperatingEnvelope implements BankPort, SandboxSimulator {
   private wallet: Balances;
   private refunded = new Set<string>();
   private credited = new Set<string>();
@@ -30,7 +30,7 @@ export class OperatingEnvelope implements AirwallexPort, SandboxSimulator {
   private transferMeta = new Map<string, { amount: number; currency: Currency; swift: boolean }>();
   readonly calls: string[] = [];
 
-  constructor(private readonly inner: AirwallexPort & SandboxSimulator, start: Balances) {
+  constructor(private readonly inner: BankPort & SandboxSimulator, start: Balances) {
     this.wallet = { ...start };
   }
 
@@ -44,7 +44,7 @@ export class OperatingEnvelope implements AirwallexPort, SandboxSimulator {
     });
   }
 
-  static restore(inner: AirwallexPort & SandboxSimulator, s: EnvelopeSnapshot): OperatingEnvelope {
+  static restore(inner: BankPort & SandboxSimulator, s: EnvelopeSnapshot): OperatingEnvelope {
     const e = new OperatingEnvelope(inner, s.wallet);
     const c = structuredClone(s);
     e.refunded = new Set(c.refunded);
@@ -55,7 +55,7 @@ export class OperatingEnvelope implements AirwallexPort, SandboxSimulator {
   }
 
   async balances(): Promise<Balances> {
-    this.calls.push('GET /balances/current');
+    this.calls.push('GET /v1/reporting/balances');
     await this.inner.balances(); // keeps the real call in the trail
     return { ...this.wallet };
   }
@@ -78,14 +78,14 @@ export class OperatingEnvelope implements AirwallexPort, SandboxSimulator {
   async ensureBeneficiary(payee: PayeeDetails): Promise<string> {
     const cached = this.beneficiaries.get(payee.supplier);
     if (cached) return cached;
-    this.calls.push('POST /beneficiaries/create');
+    this.calls.push('payee email');
     const id = await this.inner.ensureBeneficiary(payee);
     this.beneficiaries.set(payee.supplier, id);
     return id;
   }
 
-  async createTransfer(args: Parameters<AirwallexPort['createTransfer']>[0]): Promise<TransferView> {
-    this.calls.push('POST /transfers/create');
+  async createTransfer(args: Parameters<BankPort['createTransfer']>[0]): Promise<TransferView> {
+    this.calls.push('POST /v1/payments/payouts');
     const swift = args.method === 'SWIFT';
     const feeSame = swift && args.currency === 'EUR' ? SWIFT_FEE_EUR : 0;
     const feeEUR = swift && args.currency !== 'EUR' ? SWIFT_FEE_EUR : 0;
@@ -100,14 +100,14 @@ export class OperatingEnvelope implements AirwallexPort, SandboxSimulator {
   }
 
   async getTransfer(id: string): Promise<TransferView> {
-    this.calls.push('GET /transfers/{id}');
+    this.calls.push('GET /v1/payments/payouts/{id}');
     const t = await this.inner.getTransfer(id);
     this.refundIfCancelled(t);
     return t;
   }
 
   async findTransferByRequestId(requestId: string): Promise<TransferView | null> {
-    this.calls.push('GET /transfers');
+    this.calls.push('payout lookup by sender_batch_id');
     const t = await this.inner.findTransferByRequestId(requestId);
     if (t) this.refundIfCancelled(t);
     return t;
@@ -124,17 +124,17 @@ export class OperatingEnvelope implements AirwallexPort, SandboxSimulator {
   }
 
   createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string }): Promise<PaymentLinkView> {
-    this.calls.push('POST /pa/payment_links/create');
+    this.calls.push('POST /v2/invoicing/invoices');
     return this.inner.createPaymentLink(args);
   }
 
   notifyShopper(linkId: string, email: string): Promise<void> {
-    this.calls.push('POST /pa/payment_links/{id}/notify_shopper');
+    this.calls.push('POST /v2/invoicing/invoices/{id}/remind');
     return this.inner.notifyShopper(linkId, email);
   }
 
   async getPaymentLink(id: string): Promise<PaymentLinkView> {
-    this.calls.push('GET /pa/payment_links/{id}');
+    this.calls.push('GET /v2/invoicing/invoices/{id}');
     const l = await this.inner.getPaymentLink(id);
     if (l.status === 'PAID' && !this.credited.has(id)) {
       this.credited.add(id);
@@ -144,13 +144,13 @@ export class OperatingEnvelope implements AirwallexPort, SandboxSimulator {
   }
 
   async deposit(amount: number, currency: Currency, payerName: string): Promise<void> {
-    this.calls.push('POST /simulation/deposit/create');
+    this.calls.push('opening balance');
     await this.inner.deposit(amount, currency, payerName);
     this.wallet[currency] = r2(this.wallet[currency] + amount);
   }
 
   transitionTransfer(id: string, next: 'SENT' | 'PAID' | 'FAILED', failureType?: string): Promise<void> {
-    this.calls.push('POST /simulation/transfers/{id}/transition');
+    this.calls.push('POST /v1/payments/payouts-item/{id}/cancel');
     return this.inner.transitionTransfer(id, next, failureType);
   }
 

@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Reckon: morning cash brief',
-  description: 'A finance agent for project businesses that closes a cash gap instead of just rationing it. Built on Airwallex.',
+  description: 'A finance agent for project businesses that closes a cash gap instead of just rationing it. Built on PayPal.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -2,7 +2,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { defaultPolicy, seedBalances, seedRates } from '../src/domain/seed.js';
 import type { Email } from '../src/domain/types.js';
-import type { AirwallexPort, SandboxSimulator } from '../src/airwallex/port.js';
+import type { BankPort, SandboxSimulator } from '../src/bank/port.js';
 import type { EmailReader } from '../src/agent/reader.js';
 import { Reckon } from '../src/agent/reckon.js';
 import { initialState } from '../src/policy/state.js';
@@ -18,7 +18,7 @@ import { setupReturnedInstalment } from '../src/demo/incident.js';
 export const AS_OF = '2026-11-02';
 
 export interface StoryOptions {
-  awx: AirwallexPort & SandboxSimulator & { calls?: string[] };
+  bank: BankPort & SandboxSimulator & { calls?: string[] };
   reader: EmailReader;
   /** Called when the customer needs to pay the early-pay link. Resolves once it's paid. */
   payLink: (linkId: string, url: string) => Promise<void>;
@@ -31,9 +31,9 @@ const h = (title: string) => console.log(`\n\x1b[1m== ${title} ==\x1b[0m`);
 const email = async (file: string) => JSON.parse(await readFile(`data/emails/${file}`, 'utf8')) as Email;
 
 export async function runStory(o: StoryOptions): Promise<Reckon> {
-  const { awx } = o;
+  const { bank } = o;
   const book = await readBook('data/finance.xlsx', AS_OF);
-  const reckon = new Reckon(initialState(book, seedBalances, seedRates), defaultPolicy, awx, o.reader, o.clock, o.newId);
+  const reckon = new Reckon(initialState(book, seedBalances, seedRates), defaultPolicy, bank, o.reader, o.clock, o.newId);
 
   const showPlan = (p: Plan) => {
     const s = p.summary;
@@ -79,16 +79,16 @@ export async function runStory(o: StoryOptions): Promise<Reckon> {
   console.log('\nOutbox:');
   for (const m of reckon.outbox) console.log(`  to ${m.to}: ${m.subject}`);
 
-  h('5. MD approves the EUR conversion as shown; the deposit stays held');
-  reckon.approve('convert:EUR', 'MD');
+  h('5. MD approves the freight payout as shown; the deposit stays held');
+  reckon.approve('pay:PAY-114-FREIGHT', 'MD');
   const run2 = await reckon.run();
   console.log('Executed:', run2.executed);
   console.log('Still with the MD:', run2.awaitingApproval.map((d) => d.id));
 
-  h('6. Customer pays the early-pay link; supplier agrees to split');
+  h('6. Customer pays the early-pay invoice; supplier agrees to split');
   const linkId = reckon.links.get('REC-121-INV');
   if (!linkId) throw new Error('No early-pay link was sent');
-  const link = await awx.getPaymentLink(linkId);
+  const link = await bank.getPaymentLink(linkId);
   await o.payLink(linkId, link.url);
   console.log('Paid links:', await reckon.checkLinks());
   showDiff(reckon.plan().changes);
@@ -97,14 +97,14 @@ export async function runStory(o: StoryOptions): Promise<Reckon> {
   console.log('After the split reply:');
   showDiff(run3.changes);
   console.log('Executed:', run3.executed);
-  const after = await awx.balances();
+  const after = await bank.balances();
   console.log(`Operating balances now: ${fmt(after.USD, 'USD')}, ${fmt(after.EUR, 'EUR')}, ${fmt(after.GBP, 'GBP')}`);
   const final = reckon.plan().plan;
   console.log(`Cash ${fmt(final.summary.cashUSD, 'USD')} vs floor ${fmt(final.summary.reserveFloorUSD, 'USD')}: ${final.summary.cashUSD >= final.summary.reserveFloorUSD ? 'floor holds' : 'FLOOR BREACHED'}`);
 
   h("7. Supplier chases last week's instalment");
   try {
-    const prior = await setupReturnedInstalment(reckon, awx);
+    const prior = await setupReturnedInstalment(reckon, bank);
     console.log(`Last week's instalment 2: ${prior.id}, sent, then returned by the beneficiary's bank (account closed).`);
     await reckon.ingestEmail(await email('03-brightline-not-received.json'));
     const incident = await reckon.handleNotReceived('PAY-109-SUB-I2');
@@ -132,19 +132,19 @@ export async function runStory(o: StoryOptions): Promise<Reckon> {
   console.log(`Wrote ${o.outDir}/finance-after.xlsx with ${rows.length} decision rows.`);
 
   h('9. Replay');
-  for (const id of ['convert:EUR', 'early_pay_link:REC-121-INV', 'hold:PAY-117-DEPOSIT']) {
+  for (const id of ['pay:PAY-114-FREIGHT', 'early_pay_link:REC-121-INV', 'hold:PAY-117-DEPOSIT']) {
     const r = reckon.replay(id);
     console.log(`  ${id.padEnd(28)} ${r.ok ? 'identical decision from stored inputs' : `${r.reason}: ${r.detail}`}`);
   }
   console.log('  ledger chain:', reckon.ledger.verifyChain().ok ? 'intact' : 'BROKEN');
-  const tampered = structuredClone(reckon.ledger.latestRecord('convert:EUR')!);
-  tampered.policy.autonomousFxLimitUSD.low = 10000;
+  const tampered = structuredClone(reckon.ledger.latestRecord('pay:PAY-114-FREIGHT')!);
+  tampered.policy.autonomousPaymentLimitUSD.low = 10000;
   const t = replay(tampered);
   console.log('  tampered copy:', t.ok ? 'accepted (BAD)' : t.reason);
 
   await writeFile(
     `${o.outDir}/run.json`,
-    JSON.stringify({ log: reckon.log, outbox: reckon.outbox, attempts: reckon.paymentAttempts(), calls: awx.calls ?? [] }, null, 2),
+    JSON.stringify({ log: reckon.log, outbox: reckon.outbox, attempts: reckon.paymentAttempts(), calls: bank.calls ?? [] }, null, 2),
   );
   console.log(`\nFull log in ${o.outDir}/run.json`);
   return reckon;

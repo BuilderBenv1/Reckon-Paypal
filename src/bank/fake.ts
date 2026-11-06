@@ -1,6 +1,6 @@
 import type { Balances, Currency, Rates } from '../domain/types.js';
 import type { PayeeDetails } from '../domain/payees.js';
-import type { AirwallexPort, FxQuote, PaymentLinkView, SandboxSimulator, TransferView } from './port.js';
+import type { BankPort, FxQuote, PaymentLinkView, SandboxSimulator, TransferView } from './port.js';
 
 const SWIFT_FEE_EUR = 12.85;
 
@@ -16,11 +16,12 @@ export interface FakeSnapshot {
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * In-memory stand-in for the Airwallex sandbox, faithful to the behaviours the builder
- * guide warns about: single-use quotes, SWIFT fees, failed transfers ending CANCELLED,
- * duplicate request ids rejected, and failure types only after SENT.
+ * In-memory stand-in for the bank, used by the offline demo and the tests. It keeps the
+ * behaviours that matter for safety: a request id can only be used once, a returned payment
+ * ends CANCELLED with its money back, and a failure only applies after the payment was SENT.
+ * (Quotes and SWIFT fees remain for multi-currency books; the PayPal story runs in USD only.)
  */
-export class FakeAirwallex implements AirwallexPort, SandboxSimulator {
+export class FakeBank implements BankPort, SandboxSimulator {
   private wallet: Balances;
   private seq = 0;
   private quotes = new Map<string, FxQuote & { used: boolean }>();
@@ -46,8 +47,8 @@ export class FakeAirwallex implements AirwallexPort, SandboxSimulator {
     });
   }
 
-  static restore(s: FakeSnapshot, rates: Rates): FakeAirwallex {
-    const f = new FakeAirwallex(s.wallet, rates);
+  static restore(s: FakeSnapshot, rates: Rates): FakeBank {
+    const f = new FakeBank(s.wallet, rates);
     const c = structuredClone(s);
     f.seq = c.seq;
     f.quotes = new Map(c.quotes);
@@ -69,7 +70,7 @@ export class FakeAirwallex implements AirwallexPort, SandboxSimulator {
   }
 
   async balances(): Promise<Balances> {
-    this.calls.push('GET /balances/current');
+    this.calls.push('GET /v1/reporting/balances');
     return { ...this.wallet };
   }
 
@@ -97,7 +98,7 @@ export class FakeAirwallex implements AirwallexPort, SandboxSimulator {
   }
 
   async ensureBeneficiary(payee: PayeeDetails): Promise<string> {
-    this.calls.push('POST /beneficiaries/create');
+    this.calls.push('payee email');
     const existing = this.beneficiaries.get(payee.supplier);
     if (existing) return existing;
     const id = this.id('ben');
@@ -105,8 +106,8 @@ export class FakeAirwallex implements AirwallexPort, SandboxSimulator {
     return id;
   }
 
-  async createTransfer(args: Parameters<AirwallexPort['createTransfer']>[0]): Promise<TransferView> {
-    this.calls.push('POST /transfers/create');
+  async createTransfer(args: Parameters<BankPort['createTransfer']>[0]): Promise<TransferView> {
+    this.calls.push('POST /v1/payments/payouts');
     this.claim(args.requestId);
     const fee = args.method === 'SWIFT' ? SWIFT_FEE_EUR : 0;
     const feeInTransferCcy = args.currency === 'EUR' ? fee : 0;
@@ -122,33 +123,33 @@ export class FakeAirwallex implements AirwallexPort, SandboxSimulator {
   }
 
   async getTransfer(id: string): Promise<TransferView> {
-    this.calls.push('GET /transfers/{id}');
+    this.calls.push('GET /v1/payments/payouts/{id}');
     const t = this.transfers.get(id);
     if (!t) throw new Error('transfer_not_found');
     return view(t);
   }
 
   async findTransferByRequestId(requestId: string): Promise<TransferView | null> {
-    this.calls.push('GET /transfers');
+    this.calls.push('payout lookup by sender_batch_id');
     const t = [...this.transfers.values()].find((x) => x.requestId === requestId);
     return t ? view(t) : null;
   }
 
   async createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string }): Promise<PaymentLinkView> {
-    this.calls.push('POST /pa/payment_links/create');
+    this.calls.push('POST /v2/invoicing/invoices');
     const id = this.id('plink');
-    const link: PaymentLinkView = { id, url: `https://pay.sandbox.example/${id}`, status: 'UNPAID', amount: args.amount, currency: args.currency };
+    const link: PaymentLinkView = { id, url: `https://www.sandbox.paypal.com/invoice/p/#${id}`, status: 'UNPAID', amount: args.amount, currency: args.currency };
     this.links.set(id, link);
     return { ...link };
   }
 
   async notifyShopper(linkId: string): Promise<void> {
-    this.calls.push('POST /pa/payment_links/{id}/notify_shopper');
+    this.calls.push('POST /v2/invoicing/invoices/{id}/remind');
     if (!this.links.has(linkId)) throw new Error('link_not_found');
   }
 
   async getPaymentLink(id: string): Promise<PaymentLinkView> {
-    this.calls.push('GET /pa/payment_links/{id}');
+    this.calls.push('GET /v2/invoicing/invoices/{id}');
     const l = this.links.get(id);
     if (!l) throw new Error('link_not_found');
     return { ...l };
@@ -157,17 +158,17 @@ export class FakeAirwallex implements AirwallexPort, SandboxSimulator {
   // ---- sandbox simulation ----
 
   async deposit(amount: number, currency: Currency): Promise<void> {
-    this.calls.push('POST /simulation/deposit/create');
+    this.calls.push('opening balance');
     this.wallet[currency] = r2(this.wallet[currency] + amount);
   }
 
   async transitionTransfer(id: string, next: 'SENT' | 'PAID' | 'FAILED', failureType?: string): Promise<void> {
-    this.calls.push('POST /simulation/transfers/{id}/transition');
+    this.calls.push('POST /v1/payments/payouts-item/{id}/cancel');
     const t = this.transfers.get(id);
     if (!t) throw new Error('transfer_not_found');
     if (next === 'FAILED') {
       if (failureType && t.status !== 'SENT') throw new Error('failure_type only applies after SENT');
-      // Airwallex auto-cancels a failed transfer and returns the funds.
+      // A returned payment ends CANCELLED and the funds come back.
       t.status = 'CANCELLED';
       t.failureType = failureType ?? 'UNKNOWN';
       t.failureReason = failureType ? `Simulated ${failureType.toLowerCase().replace(/_/g, ' ')}` : 'simulation';

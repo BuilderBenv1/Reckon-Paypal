@@ -17,10 +17,10 @@ export const seedBook: FinanceBook = {
       job: '114',
       supplier: 'Rheinfracht Logistik GmbH',
       description: 'Freight for racking system, held at port until paid',
-      amount: 5400,
-      currency: 'EUR',
+      amount: 5890,
+      currency: 'USD',
       dueDay: 1,
-      method: 'SWIFT',
+      method: 'LOCAL',
       newPayee: false,
       acceptsSplit: false,
       deferPenaltyUSD: 350,
@@ -32,10 +32,10 @@ export const seedBook: FinanceBook = {
       job: '117',
       supplier: 'Klimatech Anlagen GmbH',
       description: 'Deposit on heat-pump equipment',
-      amount: 7500,
-      currency: 'EUR',
+      amount: 8175,
+      currency: 'USD',
       dueDay: 3,
-      method: 'SWIFT',
+      method: 'LOCAL',
       newPayee: true,
       acceptsSplit: false,
       deferPenaltyUSD: 0,
@@ -59,8 +59,8 @@ export const seedBook: FinanceBook = {
       job: '121',
       supplier: 'Pennine Joinery Supplies Ltd',
       description: 'Joinery components',
-      amount: 3200,
-      currency: 'GBP',
+      amount: 4065,
+      currency: 'USD',
       dueDay: 2,
       method: 'LOCAL',
       newPayee: false,
@@ -126,19 +126,20 @@ export const seedBook: FinanceBook = {
   ],
 };
 
-export const seedBalances: Balances = { USD: 12000, EUR: 2000, GBP: 1500 };
+// One currency on PayPal: every bill, invoice and balance is in USD.
+export const seedBalances: Balances = { USD: 16085, EUR: 0, GBP: 0 };
 
 /** Indicative synthetic rates. Replace with live sandbox rates in the live run. */
 export const seedRates: Rates = { USD: 1, EUR: 1.09, GBP: 1.27 };
 
 export const defaultPolicy: Policy = {
-  version: '2026-11-01.1',
+  version: '2026-11-06.paypal.1',
   reserveFloorUSD: 6000,
   horizonDays: 3,
   swiftFeeEUR: 12.85,
   receiptConfidenceThreshold: 0.7,
   autonomousFxLimitUSD: { high: 5000, low: 2000 },
-  autonomousPaymentLimitUSD: 7000,
+  autonomousPaymentLimitUSD: { high: 7000, low: 5000 },
   earlyPayDiscount: 0.015,
   autonomousDiscountLimitUSD: 500,
   splitShareNow: 0.5,

@@ -21,21 +21,21 @@ describe('demo session across serverless requests', () => {
     snap = await step(snap, { type: 'run' });
     expect(snap.view.last?.executed).toEqual(['pay:PAY-109-SUB', 'ask_split:PAY-121-COMP', 'early_pay_link:REC-121-INV', 'defer:PAY-OH-SAAS']);
 
-    snap = await step(snap, { type: 'approve', decisionId: 'convert:EUR' });
-    expect(snap.view.last?.executed).toEqual(['convert:EUR', 'pay:PAY-114-FREIGHT']);
+    snap = await step(snap, { type: 'approve', decisionId: 'pay:PAY-114-FREIGHT' });
+    expect(snap.view.last?.executed).toEqual(['pay:PAY-114-FREIGHT']);
 
     snap = await step(snap, { type: 'customer_pays' });
     expect(snap.view.last?.executed).toEqual(['pay:PAY-OH-SAAS']);
 
     snap = await step(snap, { type: 'split_reply' });
-    expect(snap.view.last?.executed).toEqual(['convert:GBP', 'pay:PAY-121-COMP-A']);
+    expect(snap.view.last?.executed).toEqual(['pay:PAY-121-COMP-A']);
 
     snap = await step(snap, { type: 'chase' });
     expect(snap.view.incident?.outcome).toBe('replaced');
 
-    snap = await step(snap, { type: 'replay', decisionId: 'convert:EUR' });
+    snap = await step(snap, { type: 'replay', decisionId: 'pay:PAY-114-FREIGHT' });
     expect(snap.view.replays[0]).toMatchObject({ ok: true, tampered: false });
-    snap = await step(snap, { type: 'replay', decisionId: 'convert:EUR', tamper: true });
+    snap = await step(snap, { type: 'replay', decisionId: 'pay:PAY-114-FREIGHT', tamper: true });
     expect(snap.view.replays[0]).toMatchObject({ ok: false, reason: 'tampered' });
 
     const final = Session.restore(snap, { claude: false });
@@ -57,10 +57,10 @@ describe('demo session across serverless requests', () => {
   });
 
   it('live runs cannot fake a customer payment', async () => {
-    const { FakeAirwallex } = await import('../src/airwallex/fake.js');
+    const { FakeBank } = await import('../src/bank/fake.js');
     const { seedRates } = await import('../src/domain/seed.js');
-    const inner = new FakeAirwallex({ USD: 1e7, EUR: 1e7, GBP: 1e7 }, seedRates);
+    const inner = new FakeBank({ USD: 1e7, EUR: 1e7, GBP: 1e7 }, seedRates);
     const s = await Session.create('live', { claude: false, live: () => inner });
-    await expect(s.act({ type: 'customer_pays' })).rejects.toThrow(/real payment link/);
+    await expect(s.act({ type: 'customer_pays' })).rejects.toThrow(/real PayPal invoice/);
   });
 });
