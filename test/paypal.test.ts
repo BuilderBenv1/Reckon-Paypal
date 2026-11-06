@@ -116,12 +116,13 @@ describe('PayPal client', () => {
       'POST /v2/invoicing/invoices': () => ({ status: 201, json: { id: 'INV2-AAAA', status: 'DRAFT' } }),
       'POST /v2/invoicing/invoices/{id}/send': () => ({ json: { rel: 'payer-view', href: 'https://www.sandbox.paypal.com/invoice/p/#INV2-AAAA', method: 'GET' } }),
     });
-    const link = await pp.createPaymentLink({ title: 'Calder & Finch LLP: Stage 2', amount: 11820, currency: 'USD', reference: 'REC-121-INV' });
+    const link = await pp.createPaymentLink({ title: 'Calder & Finch LLP: Stage 2', amount: 11820, currency: 'USD', reference: 'REC-121-INV', customerEmail: 'payables@calderfinch.example' });
     expect(link).toEqual({ id: 'INV2-AAAA', url: 'https://www.sandbox.paypal.com/invoice/p/#INV2-AAAA', status: 'UNPAID', amount: 11820, currency: 'USD' });
     const create = sent.find((s) => s.path === '/v2/invoicing/invoices')!;
     expect(create.headers.Prefer).toBe('return=representation');
     expect(create.body.items[0].unit_amount).toEqual({ currency_code: 'USD', value: '11820.00' });
     expect(create.body.detail.reference).toBe('REC-121-INV');
+    expect(create.body.primary_recipients).toEqual([{ billing_info: { email_address: 'payables@calderfinch.example' } }]);
     expect(sent.find((s) => s.path.endsWith('/send'))!.body).toEqual({ send_to_recipient: false, send_to_invoicer: false });
   });
 
@@ -148,7 +149,7 @@ describe('PayPal client', () => {
   it('asks PayPal to email the customer with a reminder', async () => {
     const { pp, sent } = mockPayPal({ 'POST /v2/invoicing/invoices/{id}/remind': () => ({ status: 204 }) });
     await pp.notifyShopper('INV2-A', 'payables@calderfinch.example');
-    expect(sent.at(-1)!.body.additional_recipients).toEqual(['payables@calderfinch.example']);
+    expect(sent.at(-1)!.body.subject).toBe('Early payment offer');
   });
 
   it('returns an unclaimed payout for the incident, and refuses anything else', async () => {

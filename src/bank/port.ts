@@ -59,7 +59,7 @@ export interface BankPort {
   getTransfer(id: string): Promise<TransferView>;
   /** Find a transfer by our request id, used before any retry so a retry can never pay twice. */
   findTransferByRequestId(requestId: string): Promise<TransferView | null>;
-  createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string }): Promise<PaymentLinkView>;
+  createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string; customerEmail?: string }): Promise<PaymentLinkView>;
   notifyShopper(linkId: string, email: string): Promise<void>;
   getPaymentLink(id: string): Promise<PaymentLinkView>;
 }

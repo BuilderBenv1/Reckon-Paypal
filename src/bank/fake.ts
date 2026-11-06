@@ -135,7 +135,7 @@ export class FakeBank implements BankPort, SandboxSimulator {
     return t ? view(t) : null;
   }
 
-  async createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string }): Promise<PaymentLinkView> {
+  async createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string; customerEmail?: string }): Promise<PaymentLinkView> {
     this.calls.push('POST /v2/invoicing/invoices');
     const id = this.id('plink');
     const link: PaymentLinkView = { id, url: `https://www.sandbox.paypal.com/invoice/p/#${id}`, status: 'UNPAID', amount: args.amount, currency: args.currency };

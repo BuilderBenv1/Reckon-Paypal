@@ -194,7 +194,7 @@ export class Reckon {
       }
       case 'early_pay_link': {
         const r = book.receivables.find((x) => x.id === d.target)!;
-        const link = await this.bank.createPaymentLink({ title: `${r.customer}: ${r.milestone}`, amount: d.amount, currency: d.currency, reference: r.id });
+        const link = await this.bank.createPaymentLink({ title: `${r.customer}: ${r.milestone}`, amount: d.amount, currency: d.currency, reference: r.id, customerEmail: r.customerEmail });
         try {
           await this.bank.notifyShopper(link.id, r.customerEmail);
         } catch (err) {

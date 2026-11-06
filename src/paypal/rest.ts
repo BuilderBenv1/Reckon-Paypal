@@ -265,7 +265,7 @@ export class PayPalRest implements BankPort, SandboxSimulator {
 
   // ---- invoices (Reckon's "payment link") ----
 
-  async createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string }): Promise<PaymentLinkView> {
+  async createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string; customerEmail?: string }): Promise<PaymentLinkView> {
     const draft = await this.call<Invoice>('POST', '/v2/invoicing/invoices', {
       headers: { Prefer: 'return=representation' },
       body: {
@@ -275,6 +275,8 @@ export class PayPalRest implements BankPort, SandboxSimulator {
           note: 'Early payment offer. This invoice replaces the original for this milestone if paid today.',
           payment_term: { term_type: 'DUE_ON_RECEIPT' },
         },
+        // PayPal needs the customer on the invoice to send it by email or remind them later.
+        ...(args.customerEmail ? { primary_recipients: [{ billing_info: { email_address: args.customerEmail } }] } : {}),
         items: [{ name: args.title.slice(0, 200), quantity: '1', unit_amount: { currency_code: args.currency, value: money(args.amount) } }],
       },
     });
@@ -292,7 +294,7 @@ export class PayPalRest implements BankPort, SandboxSimulator {
   async notifyShopper(linkId: string, email: string): Promise<void> {
     await this.call<void>('POST', `/v2/invoicing/invoices/${linkId}/remind`, {
       label: 'POST /v2/invoicing/invoices/{id}/remind',
-      body: { subject: 'Early payment offer', additional_recipients: [email] },
+      body: { subject: 'Early payment offer', note: `Sent to ${email}` },
     });
   }
 

@@ -56,7 +56,7 @@ export async function runSmoke(pp: PayPalRest): Promise<SmokeReport> {
       (v) => v,
     );
   }
-  const link = await step('create and send invoice ($1 USD)', () => pp.createPaymentLink({ title: 'Smoke test', amount: 1, currency: 'USD', reference: `SMOKE-${requestId.slice(0, 8)}` }), (l) => `${l.id} ${l.url}`);
+  const link = await step('create and send invoice ($1 USD)', () => pp.createPaymentLink({ title: 'Smoke test', amount: 1, currency: 'USD', reference: `SMOKE-${requestId.slice(0, 8)}`, customerEmail: 'smoke-buyer@example.com' }), (l) => `${l.id} ${l.url}`);
   if (link) {
     await step('read invoice', () => pp.getPaymentLink(link.id), (l) => `${l.id} ${l.status} ${l.amount} ${l.currency}`);
     await step('remind (PayPal emails the customer)', () => pp.notifyShopper(link.id, 'smoke-buyer@example.com'), () => 'sent');

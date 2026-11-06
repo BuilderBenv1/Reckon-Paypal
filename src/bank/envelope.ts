@@ -123,7 +123,7 @@ export class OperatingEnvelope implements BankPort, SandboxSimulator {
     if (meta.currency !== 'EUR') this.wallet.EUR = r2(this.wallet.EUR + fee);
   }
 
-  createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string }): Promise<PaymentLinkView> {
+  createPaymentLink(args: { title: string; amount: number; currency: Currency; reference: string; customerEmail?: string }): Promise<PaymentLinkView> {
     this.calls.push('POST /v2/invoicing/invoices');
     return this.inner.createPaymentLink(args);
   }
