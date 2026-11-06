@@ -58,7 +58,7 @@ npm test
 
 ## Hosting on Vercel
 
-1. **Supabase.** Create a free project and run `supabase/migrations/0001_reckon.sql` (and `0002_narration.sql` for the cached narrator voice) in its SQL editor.
+1. **Supabase.** Create a free project (or reuse one: the tables are prefixed `reckon_pp_`) and run `supabase/migrations/0001_reckon.sql` (and `0002_narration.sql` for the cached narrator voice) in its SQL editor.
 2. **Vercel.** Import this repo (detected as Next.js) and add:
 
 | Variable | Needed for | Notes |

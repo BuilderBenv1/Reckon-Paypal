@@ -130,20 +130,20 @@ export class SupabaseRunStore implements RunStore {
   }
 
   async create(mode: Mode, data: SessionSnapshot, refs: string[]) {
-    const rows = await this.req<Row[]>('POST', 'reckon_runs', { mode, data, refs }, 'return=representation');
+    const rows = await this.req<Row[]>('POST', 'reckon_pp_runs', { mode, data, refs }, 'return=representation');
     return toRun(rows[0]!);
   }
 
   async get(id: string) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-    const rows = await this.req<Row[]>('GET', `reckon_runs?id=eq.${id}&select=*`);
+    const rows = await this.req<Row[]>('GET', `reckon_pp_runs?id=eq.${id}&select=*`);
     return rows[0] ? toRun(rows[0]) : null;
   }
 
   async save(run: StoredRun, data: SessionSnapshot, refs: string[]) {
     const rows = await this.req<Row[]>(
       'PATCH',
-      `reckon_runs?id=eq.${run.id}&version=eq.${run.version}`,
+      `reckon_pp_runs?id=eq.${run.id}&version=eq.${run.version}`,
       { data, refs, version: run.version + 1, updated_at: new Date().toISOString() },
       'return=representation',
     );
@@ -153,19 +153,19 @@ export class SupabaseRunStore implements RunStore {
 
   async findLiveByRef(ref: string) {
     const safe = ref.replace(/[^A-Za-z0-9_-]/g, '');
-    const rows = await this.req<Row[]>('GET', `reckon_runs?mode=eq.live&refs=cs.%7B${encodeURIComponent(safe)}%7D&select=*`);
+    const rows = await this.req<Row[]>('GET', `reckon_pp_runs?mode=eq.live&refs=cs.%7B${encodeURIComponent(safe)}%7D&select=*`);
     return rows.map(toRun);
   }
 
   async recentLive(limit: number) {
-    const rows = await this.req<Row[]>('GET', `reckon_runs?mode=eq.live&order=updated_at.desc&limit=${Math.max(1, Math.min(limit, 20))}&select=*`);
+    const rows = await this.req<Row[]>('GET', `reckon_pp_runs?mode=eq.live&order=updated_at.desc&limit=${Math.max(1, Math.min(limit, 20))}&select=*`);
     return rows.map(toRun);
   }
 
   async recordWebhook(evt: WebhookEvent) {
     const rows = await this.req<unknown[]>(
       'POST',
-      'reckon_webhook_events?on_conflict=id',
+      'reckon_pp_webhook_events?on_conflict=id',
       { id: evt.id, name: evt.name, payload: evt.payload },
       'resolution=ignore-duplicates,return=representation',
     );
@@ -173,7 +173,7 @@ export class SupabaseRunStore implements RunStore {
   }
 
   async markWebhookHandled(id: string, runIds: string[]) {
-    await this.req('PATCH', `reckon_webhook_events?id=eq.${encodeURIComponent(id)}`, { handled_runs: runIds });
+    await this.req('PATCH', `reckon_pp_webhook_events?id=eq.${encodeURIComponent(id)}`, { handled_runs: runIds });
   }
 }
 

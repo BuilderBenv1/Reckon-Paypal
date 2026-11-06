@@ -58,7 +58,7 @@ describe('supabase run store', () => {
     const store = new SupabaseRunStore('https://x.supabase.co/', 'eyJsvc', fetchImpl);
     const run = { id: '11111111-1111-4111-8111-111111111111', mode: 'demo' as const, version: 4, refs: [], data: {} as never, updatedAt: '' };
     await expect(store.save(run, {} as never, [])).rejects.toBeInstanceOf(ConflictError);
-    expect(calls[0]!.url).toBe('https://x.supabase.co/rest/v1/reckon_runs?id=eq.11111111-1111-4111-8111-111111111111&version=eq.4');
+    expect(calls[0]!.url).toBe('https://x.supabase.co/rest/v1/reckon_pp_runs?id=eq.11111111-1111-4111-8111-111111111111&version=eq.4');
     expect((calls[0]!.init.headers as Record<string, string>).Authorization).toBe('Bearer eyJsvc');
     expect(JSON.parse(calls[0]!.init.body as string).version).toBe(5);
   });
