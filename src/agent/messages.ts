@@ -23,7 +23,7 @@ export function earlyPayOffer(r: Receivable, linkAmount: number, url: string, po
     subject: `${r.milestone}: ${(policy.earlyPayDiscount * 100).toFixed(1)}% off if paid today`,
     body:
       `Hi,\n\nYour invoice for ${r.milestone.toLowerCase()} (${fmt(r.amount, r.currency)}) is due in ${r.expectedDay} days. ` +
-      `If it suits you to settle early, you can pay ${fmt(linkAmount, r.currency)} today through this secure link and keep the difference:\n\n${url}\n\n` +
+      `If it suits you to settle early, you can pay ${fmt(linkAmount, r.currency)} today through this secure PayPal invoice and keep the difference:\n\n${url}\n\n` +
       `No action needed if you'd rather pay on the usual terms.\n\nThanks,\nAccounts`,
   };
 }

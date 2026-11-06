@@ -409,7 +409,7 @@ function Landing({
           </div>
           <div>
             <h3>Pulls cash in</h3>
-            <p>Offers a reliable customer 1.5% to pay today by payment link, asks a supplier who has agreed before to split, defers what costs nothing to delay.</p>
+            <p>Offers a reliable customer 1.5% to pay today by PayPal invoice, asks a supplier who has agreed before to split, defers what costs nothing to delay.</p>
           </div>
           <div>
             <h3>Proves every decision</h3>
@@ -697,7 +697,7 @@ function Payments({ run }: { run: RunView }) {
                 <span>{money(l.amount, l.currency, 2)} in</span>
               </div>
               <div className="row-top">
-                <span className="faint">Early-pay link</span>
+                <span className="faint">Early-pay invoice</span>
                 <span className={`chip ${l.status === 'paid' ? 'chip-done' : 'chip-wait'}`}>{l.status === 'paid' ? 'paid' : 'sent'}</span>
               </div>
             </li>
@@ -865,7 +865,7 @@ function Steps({ run, busy, onAct }: { run: RunView; busy: string | null; onAct:
               <div className="step-actions">
                 {s.link && (
                   <a className="btn btn-agent" href={s.link} target="_blank" rel="noreferrer">
-                    Open the payment link
+                    Open the PayPal invoice
                   </a>
                 )}
                 {s.action && (

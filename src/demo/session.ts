@@ -263,7 +263,7 @@ export class Session {
       case 'customer_pays': {
         if (!(this.bank instanceof FakeBank)) throw new Error('In a live run the customer pays the real PayPal invoice.');
         const linkId = this.reckon.links.get('REC-121-INV');
-        if (!linkId) throw new Error('No payment link has been sent yet.');
+        if (!linkId) throw new Error('No early-pay invoice has been sent yet.');
         await this.bank.payLink(linkId);
         await this.afterLinkCheck();
         return;

@@ -66,7 +66,7 @@ const KIND_LABEL: Record<Decision['kind'], string> = {
   hold: 'Hold for the MD',
   defer: 'Defer',
   ask_split: 'Ask to split',
-  early_pay_link: 'Early-pay link',
+  early_pay_link: 'Early-pay invoice',
   convert: 'Convert',
   escalate_gap: 'Escalate',
 };

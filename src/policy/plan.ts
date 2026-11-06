@@ -317,8 +317,8 @@ function candidateLevers(
         execution: discount > policy.autonomousDiscountLimitUSD ? 'approval' : 'auto',
         status: sent ? 'waiting' : 'now', dependsOn: [], rule: 'early_pay_discount',
         reason: sent
-          ? `Payment link for ${fmt(linkAmount, r.currency)} sent to ${r.customer}; waiting for payment.`
-          : `Offer ${r.customer} ${(policy.earlyPayDiscount * 100).toFixed(1)}% (${fmt(discount, 'USD')}) to pay ${fmt(r.amount, r.currency)} today by payment link instead of in ${r.expectedDay} days. They pay on time ${Math.round(r.onTimeRate * 100)}% of the time.`,
+          ? `PayPal invoice for ${fmt(linkAmount, r.currency)} sent to ${r.customer}; waiting for payment.`
+          : `Offer ${r.customer} ${(policy.earlyPayDiscount * 100).toFixed(1)}% (${fmt(discount, 'USD')}) to pay ${fmt(r.amount, r.currency)} today by PayPal invoice instead of in ${r.expectedDay} days. They pay on time ${Math.round(r.onTimeRate * 100)}% of the time.`,
       },
     });
   }

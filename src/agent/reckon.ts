@@ -204,7 +204,7 @@ export class Reckon {
         this.links.set(r.id, link.id);
         this.outbox.push({ decisionId: d.id, ...earlyPayOffer(r, d.amount, link.url, this.policy) });
         this.state.earlyPayLinks[r.id] = 'sent';
-        this.note('link', `Payment link for ${fmt(d.amount, d.currency)} sent to ${r.customer}.`);
+        this.note('link', `PayPal invoice for ${fmt(d.amount, d.currency)} sent to ${r.customer}.`);
         return;
       }
       case 'defer':
@@ -256,7 +256,7 @@ export class Reckon {
     this.note('approve', `${by} approved ${decisionId} as shown: ${d.reason}`);
   }
 
-  /** Polls sent payment links (the live build uses the payment_intent.succeeded webhook). */
+  /** Polls sent invoices (the live build also replans on the INVOICING.INVOICE.PAID webhook). */
   async checkLinks(): Promise<string[]> {
     const paid: string[] = [];
     for (const [receivableId, linkId] of this.links) {
@@ -265,7 +265,7 @@ export class Reckon {
       if (link.status === 'PAID') {
         this.state.earlyPayLinks[receivableId] = 'paid';
         paid.push(receivableId);
-        this.note('link', `${receivableId} paid ${fmt(link.amount, link.currency)} by payment link.`);
+        this.note('link', `${receivableId} paid ${fmt(link.amount, link.currency)} by PayPal invoice.`);
       }
     }
     if (paid.length) await this.refreshBalances();
