@@ -20,12 +20,20 @@ The model never decides an amount, a limit or what is allowed. Money logic is in
 
 ## Try it
 
+**Hosted demo: [reckon-paypal.vercel.app](https://reckon-paypal.vercel.app)**
+
+Open it and press **Watch the guided demo**: a narrator plays the whole story by itself, pressing each button and saying what changed. Or click through it yourself, one step at a time: the MD's brief, approvals bound to exact terms, what each new fact changed, every decision with a replay button, and the money that moved.
+
+Demo runs use an in-memory PayPal stand-in, so anyone can try them with no account. Live runs (behind an access code) make real PayPal sandbox calls: real payouts, a real invoice the customer pays, and PayPal webhooks that replan the agent on their own. Every PayPal call was checked against the real sandbox on 6 Nov 2026 (9/9, `npm run sandbox:smoke`).
+
+To run it locally:
+
 ```
 npm install
 npm run dev            # http://localhost:3000
 ```
 
-The app walks through the story one step at a time: the MD's brief, approvals bound to exact terms, what each new fact changed, every decision with a replay button, and the money that moved. **Watch the guided demo** plays it by itself with a narrator. Demo runs use an in-memory PayPal stand-in so anyone can click through; live runs (with the access code) make real PayPal sandbox calls and receive webhooks.
+Without any keys it runs demo runs only. Add the PayPal and Supabase variables (below) for live runs.
 
 ## The story in one run (terminal, no keys)
 
