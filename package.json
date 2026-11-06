@@ -1,5 +1,5 @@
 {
-  "name": "reckon",
+  "name": "reckon-paypal",
   "version": "0.1.0",
   "private": true,
   "description": "A finance agent for project businesses that closes a cash gap instead of just rationing it. Built on PayPal APIs (Invoicing, Payouts, Reporting, webhooks) and Claude.",
@@ -11,7 +11,6 @@
     "seed:sheet": "tsx scripts/build-sheet.ts",
     "demo:offline": "tsx scripts/demo-offline.ts",
     "sandbox:smoke": "tsx scripts/sandbox-smoke.ts",
-    "demo:live": "tsx scripts/demo-live.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
