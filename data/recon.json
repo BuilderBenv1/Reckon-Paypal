@@ -1,0 +1,380 @@
+{
+  "invoices": [
+    {
+      "id": "INV-5001",
+      "customer": "Ashby Dental Group",
+      "amount": 850,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5002",
+      "customer": "Bramley Foods Ltd",
+      "amount": 2223.5,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5003",
+      "customer": "Carrow Estates",
+      "amount": 3597,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5004",
+      "customer": "Dunmore Leisure",
+      "amount": 4969,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5005",
+      "customer": "Elmfield Care Homes",
+      "amount": 6342.5,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5006",
+      "customer": "Fenwick Retail",
+      "amount": 1616,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5007",
+      "customer": "Greyhaven Studios",
+      "amount": 2988,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5008",
+      "customer": "Holloway Motors",
+      "amount": 4361.5,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5009",
+      "customer": "Ironbridge Clinics",
+      "amount": 5735,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5010",
+      "customer": "Juniper Housing",
+      "amount": 1007,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5011",
+      "customer": "Ashby Dental Group",
+      "amount": 2380.5,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5012",
+      "customer": "Bramley Foods Ltd",
+      "amount": 3754,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5013",
+      "customer": "Carrow Estates",
+      "amount": 5126,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5014",
+      "customer": "Dunmore Leisure",
+      "amount": 6499.5,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5015",
+      "customer": "Elmfield Care Homes",
+      "amount": 1773,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5016",
+      "customer": "Fenwick Retail",
+      "amount": 3145,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5017",
+      "customer": "Greyhaven Studios",
+      "amount": 4518.5,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5018",
+      "customer": "Holloway Motors",
+      "amount": 5892,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5019",
+      "customer": "Ironbridge Clinics",
+      "amount": 1164,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5020",
+      "customer": "Juniper Housing",
+      "amount": 2537.5,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5101",
+      "customer": "Kestrel Facilities",
+      "amount": 3120,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5102",
+      "customer": "Kestrel Facilities",
+      "amount": 1880,
+      "currency": "USD"
+    },
+    {
+      "id": "HLH-INV-0381",
+      "customer": "Harbour Lane Hotels",
+      "amount": 4900,
+      "currency": "USD"
+    },
+    {
+      "id": "INV-5103",
+      "customer": "Lumen Bau GmbH",
+      "amount": 6400,
+      "currency": "EUR"
+    },
+    {
+      "id": "PLAN-77-1",
+      "customer": "Marston Schools",
+      "amount": 2750,
+      "currency": "USD",
+      "instalment": {
+        "plan": "PLAN-77",
+        "n": 1,
+        "of": 3
+      }
+    },
+    {
+      "id": "PLAN-77-2",
+      "customer": "Marston Schools",
+      "amount": 2750,
+      "currency": "USD",
+      "instalment": {
+        "plan": "PLAN-77",
+        "n": 2,
+        "of": 3
+      }
+    }
+  ],
+  "lines": [
+    {
+      "id": "BL-101",
+      "date": "2026-11-01",
+      "payer": "Ashby Dental Group",
+      "amount": 850,
+      "currency": "USD",
+      "reference": "INV-5001"
+    },
+    {
+      "id": "BL-102",
+      "date": "2026-11-01",
+      "payer": "Bramley Foods Ltd",
+      "amount": 2223.5,
+      "currency": "USD",
+      "reference": "INV-5002"
+    },
+    {
+      "id": "BL-103",
+      "date": "2026-11-01",
+      "payer": "Carrow Estates",
+      "amount": 3597,
+      "currency": "USD",
+      "reference": "INV-5003"
+    },
+    {
+      "id": "BL-104",
+      "date": "2026-11-01",
+      "payer": "Dunmore Leisure",
+      "amount": 4969,
+      "currency": "USD",
+      "reference": "INV-5004"
+    },
+    {
+      "id": "BL-105",
+      "date": "2026-11-01",
+      "payer": "Elmfield Care Homes",
+      "amount": 6342.5,
+      "currency": "USD",
+      "reference": "INV-5005"
+    },
+    {
+      "id": "BL-106",
+      "date": "2026-11-01",
+      "payer": "Fenwick Retail",
+      "amount": 1616,
+      "currency": "USD",
+      "reference": "INV-5006"
+    },
+    {
+      "id": "BL-107",
+      "date": "2026-11-01",
+      "payer": "Greyhaven Studios",
+      "amount": 2988,
+      "currency": "USD",
+      "reference": "INV-5007"
+    },
+    {
+      "id": "BL-108",
+      "date": "2026-11-01",
+      "payer": "Holloway Motors",
+      "amount": 4361.5,
+      "currency": "USD",
+      "reference": "INV-5008"
+    },
+    {
+      "id": "BL-109",
+      "date": "2026-11-01",
+      "payer": "Ironbridge Clinics",
+      "amount": 5735,
+      "currency": "USD",
+      "reference": "INV-5009"
+    },
+    {
+      "id": "BL-110",
+      "date": "2026-11-01",
+      "payer": "Juniper Housing",
+      "amount": 1007,
+      "currency": "USD",
+      "reference": "INV-5010"
+    },
+    {
+      "id": "BL-111",
+      "date": "2026-11-01",
+      "payer": "Ashby Dental Group",
+      "amount": 2380.5,
+      "currency": "USD",
+      "reference": "INV-5011"
+    },
+    {
+      "id": "BL-112",
+      "date": "2026-11-01",
+      "payer": "Bramley Foods Ltd",
+      "amount": 3754,
+      "currency": "USD",
+      "reference": "INV-5012"
+    },
+    {
+      "id": "BL-113",
+      "date": "2026-11-01",
+      "payer": "Carrow Estates",
+      "amount": 5126,
+      "currency": "USD",
+      "reference": "INV-5013"
+    },
+    {
+      "id": "BL-114",
+      "date": "2026-11-01",
+      "payer": "Dunmore Leisure",
+      "amount": 6499.5,
+      "currency": "USD",
+      "reference": "INV-5014"
+    },
+    {
+      "id": "BL-115",
+      "date": "2026-11-01",
+      "payer": "Elmfield Care Homes",
+      "amount": 1773,
+      "currency": "USD",
+      "reference": "INV-5015"
+    },
+    {
+      "id": "BL-116",
+      "date": "2026-11-01",
+      "payer": "Fenwick Retail",
+      "amount": 3145,
+      "currency": "USD",
+      "reference": "INV-5016"
+    },
+    {
+      "id": "BL-117",
+      "date": "2026-11-01",
+      "payer": "Greyhaven Studios",
+      "amount": 4518.5,
+      "currency": "USD",
+      "reference": "INV-5017"
+    },
+    {
+      "id": "BL-118",
+      "date": "2026-11-01",
+      "payer": "Holloway Motors",
+      "amount": 5892,
+      "currency": "USD",
+      "reference": "INV-5018"
+    },
+    {
+      "id": "BL-119",
+      "date": "2026-11-01",
+      "payer": "Ironbridge Clinics",
+      "amount": 1164,
+      "currency": "USD",
+      "reference": "INV-5019"
+    },
+    {
+      "id": "BL-120",
+      "date": "2026-11-01",
+      "payer": "Juniper Housing",
+      "amount": 2537.5,
+      "currency": "USD",
+      "reference": "INV-5020"
+    },
+    {
+      "id": "BL-201",
+      "date": "2026-11-01",
+      "payer": "Kestrel Facilities",
+      "amount": 5000,
+      "currency": "USD",
+      "reference": "KESTREL ACC 0042"
+    },
+    {
+      "id": "BL-202",
+      "date": "2026-11-01",
+      "payer": "Harbour Lane Hotels",
+      "amount": 4650,
+      "currency": "USD",
+      "reference": "HLH-INV-0381"
+    },
+    {
+      "id": "BL-203",
+      "date": "2026-11-01",
+      "payer": "Lumen Bau GmbH",
+      "amount": 6385,
+      "currency": "EUR",
+      "reference": "INV-5103"
+    },
+    {
+      "id": "BL-204",
+      "date": "2026-10-25",
+      "payer": "Marston Schools",
+      "amount": 2750,
+      "currency": "USD",
+      "reference": "PLAN-77"
+    },
+    {
+      "id": "BL-205",
+      "date": "2026-11-01",
+      "payer": "Marston Schools",
+      "amount": 2750,
+      "currency": "USD",
+      "reference": "PLAN-77"
+    },
+    {
+      "id": "BL-206",
+      "date": "2026-11-01",
+      "payer": "TRF 88213",
+      "amount": 1200,
+      "currency": "USD",
+      "reference": ""
+    }
+  ]
+}

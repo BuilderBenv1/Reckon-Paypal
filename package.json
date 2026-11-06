@@ -1,0 +1,41 @@
+{
+  "name": "reckon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A finance agent for project businesses that closes a cash gap instead of just rationing it. Built on Airwallex APIs for the Agentic Banking Hackathon 2026.",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "seed:sheet": "tsx scripts/build-sheet.ts",
+    "demo:offline": "tsx scripts/demo-offline.ts",
+    "sandbox:smoke": "tsx scripts/sandbox-smoke.ts",
+    "demo:live": "tsx scripts/demo-live.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "exceljs": "^4.4.0",
+    "next": "^15.5.28",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "postcss": "^8.5.31",
+    "uuid": "^11.1.1"
+  }
+}
