@@ -10,7 +10,7 @@ Needs: project that meaningfully uses PayPal (sandbox) and AI; hosted demo URL o
 - `npm run typecheck`
 - `npm run seed:sheet`: rebuild `data/finance.xlsx` and `data/recon.json` from `src/domain/seed.ts` and `src/recon/fixture.ts`. Run it after any seed change; `demo:offline` reads the workbook.
 - `npm run demo:offline`: the full story against `FakeBank`, no keys
-- `npm run sandbox:smoke`: every PayPal call against the real sandbox (needs `.env`). Not yet run against a real sandbox.
+- `npm run sandbox:smoke`: every PayPal call against the real sandbox (needs `.env`); 9/9 passed on 6 Nov 2026 via the hosted `/api/smoke` check.
 
 ## Rules
 
@@ -23,7 +23,7 @@ Needs: project that meaningfully uses PayPal (sandbox) and AI; hosted demo URL o
 - **Payout states** (`payoutStatus` in `src/paypal/rest.ts`): SUCCESS → PAID; UNCLAIMED → SENT; PENDING/ONHOLD → PROCESSING; FAILED/BLOCKED → FAILED; RETURNED/REFUNDED/REVERSED → CANCELLED. Only FAILED or CANCELLED allows a replacement.
 - **Returned payment on the real sandbox:** payouts to the invented supplier emails sit UNCLAIMED; `transitionTransfer(id, 'FAILED')` cancels the unclaimed item, which returns it. Leave `PAYPAL_SANDBOX_RECEIVER` unset for the full story.
 - **Never commit keys.** `.env` is gitignored; use `.env.example` for new variables.
-- PayPal field names in `src/paypal/rest.ts` follow the REST reference but have not been confirmed against a live sandbox yet. `npm run sandbox:smoke` is that check.
+- PayPal field names in `src/paypal/rest.ts` were confirmed against the real sandbox on 6 Nov 2026 (9/9). An invoice needs `primary_recipients` before PayPal will remind; a repeated `sender_batch_id` is refused with USER_BUSINESS_ERROR; a USD payout from a GBP-only sandbox balance converts automatically; the Reporting balances API reads 0 on this sandbox account (the envelope ignores it).
 
 ## Web app
 
@@ -36,6 +36,6 @@ Needs: project that meaningfully uses PayPal (sandbox) and AI; hosted demo URL o
 
 ## Next up
 
-- Run `npm run sandbox:smoke` against a real sandbox app and fix any field names
+- Smoke check passed 9/9 on the real sandbox (6 Nov 2026)
 - New Vercel project + Supabase; add the PayPal webhook; run a guided live run from the hosted page
 - Record the video (under 3 minutes)
