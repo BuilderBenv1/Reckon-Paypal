@@ -344,10 +344,20 @@ export class PayPalRest implements BankPort, SandboxSimulator {
 
   async transitionTransfer(id: string, next: 'SENT' | 'PAID' | 'FAILED'): Promise<void> {
     if (next !== 'FAILED') return; // PayPal moves payouts on its own
-    const b = await this.call<PayoutBatch>('GET', `/v1/payments/payouts/${encodeURIComponent(id)}`, { label: 'GET /v1/payments/payouts/{id}' });
-    const item = b.items?.[0];
+    // A new payout sits PENDING for 10-20 seconds before PayPal marks it UNCLAIMED, and only an
+    // unclaimed item can be cancelled, so wait for that state (up to about 30 seconds).
+    let item: PayoutItem | undefined;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const b = await this.call<PayoutBatch>('GET', `/v1/payments/payouts/${encodeURIComponent(id)}`, { label: 'GET /v1/payments/payouts/{id}' });
+      item = b.items?.[0];
+      const status = item?.transaction_status;
+      if (status === 'UNCLAIMED') break;
+      if (status === 'SUCCESS') throw new Error(`payout ${id} already settled; a settled payout cannot be returned`);
+      if (status && !['PENDING', 'ONHOLD', 'NEW'].includes(status)) throw new Error(`payout ${id} is ${status}; only an unclaimed payout can be returned`);
+      await new Promise((r) => setTimeout(r, 3000));
+    }
     if (!item?.payout_item_id) throw new Error(`payout ${id} has no item yet`);
-    if (item.transaction_status !== 'UNCLAIMED') throw new Error(`payout ${id} is ${item.transaction_status}; only an unclaimed payout can be returned`);
+    if (item.transaction_status !== 'UNCLAIMED') throw new Error(`payout ${id} is still ${item.transaction_status} after 30 seconds; only an unclaimed payout can be returned`);
     await this.call('POST', `/v1/payments/payouts-item/${item.payout_item_id}/cancel`, { label: 'POST /v1/payments/payouts-item/{id}/cancel' });
   }
 

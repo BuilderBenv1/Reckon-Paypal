@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PayPalRest, payoutStatus, invoicePaid, PayPalError } from '../src/paypal/rest.js';
 import { payees } from '../src/domain/payees.js';
 
@@ -161,7 +161,24 @@ describe('PayPal client', () => {
     await pp.transitionTransfer('B', 'FAILED');
     expect(sent.at(-1)!.path).toBe('/v1/payments/payouts-item/ITEM1/cancel');
     item = { payout_item_id: 'ITEM1', transaction_status: 'SUCCESS' };
+    await expect(pp.transitionTransfer('B', 'FAILED')).rejects.toThrow(/already settled/);
+    item = { payout_item_id: 'ITEM1', transaction_status: 'FAILED' };
     await expect(pp.transitionTransfer('B', 'FAILED')).rejects.toThrow(/only an unclaimed payout/);
+  });
+
+  it('waits for a pending payout to become unclaimed before returning it', async () => {
+    vi.useFakeTimers();
+    let reads = 0;
+    const { pp, sent } = mockPayPal({
+      'GET /v1/payments/payouts/{id}': () => ({ json: { batch_header: { payout_batch_id: 'B', batch_status: 'PROCESSING' }, items: [{ payout_item_id: 'ITEM1', transaction_status: ++reads < 3 ? 'PENDING' : 'UNCLAIMED' }] } }),
+      'POST /v1/payments/payouts-item/{id}/cancel': () => ({ json: { transaction_status: 'RETURNED' } }),
+    });
+    const done = pp.transitionTransfer('B', 'FAILED');
+    await vi.advanceTimersByTimeAsync(7000);
+    await done;
+    vi.useRealTimers();
+    expect(reads).toBe(3);
+    expect(sent.at(-1)!.path).toBe('/v1/payments/payouts-item/ITEM1/cancel');
   });
 
   it('refuses FX: the PayPal books run in one currency', async () => {

@@ -102,11 +102,26 @@ export function buildView(id: string, session: Session): RunView {
   };
   const decisions = plan.decisions.map(toView);
   const inPlan = new Set(plan.decisions.map((d) => d.id));
+  const money = (n: number, c: string) => `${c} ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // A decision that has left the plan keeps its recorded reason, but the outcome has moved on:
+  // say what actually happened rather than "waiting for ...".
+  const settled = (v: DecisionView): DecisionView => {
+    if (v.kind === 'early_pay_link' && r.state.earlyPayLinks[v.target] === 'paid') {
+      const rec = book.receivables.find((x) => x.id === v.target);
+      return { ...v, reason: `${rec?.customer ?? 'The customer'} paid the PayPal invoice for ${money(v.amount, v.currency)} early.` };
+    }
+    if (v.kind === 'ask_split' && r.state.signals.some((sig) => sig.kind === 'split_accepted' && sig.payableId === v.target)) {
+      const pay = book.payables.find((p) => p.id === v.target);
+      return { ...v, reason: `${pay?.supplier ?? 'The supplier'} agreed to split ${money(v.amount, v.currency)}: half now, half later.` };
+    }
+    return v;
+  };
   const doneToday = [...r.ledger.executed]
     .filter((id) => !inPlan.has(id))
     .map((id) => r.ledger.latestRecord(id)?.decision)
     .filter((d): d is Decision => !!d)
-    .map(toView);
+    .map(toView)
+    .map(settled);
 
   const done = new Set(session.snap.done);
   const linkUrl = (receivableId: string) => {

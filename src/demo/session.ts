@@ -336,7 +336,10 @@ export class Session {
   private async afterLinkCheck() {
     const paid = await this.reckon.checkLinks();
     if (!paid.length) {
-      this.result('check_links', 'Invoice not paid yet.', [], []);
+      // Nothing new. If an invoice is still outstanding say so; if the webhook already handled
+      // the payment, leave the last result (the replan) on the page.
+      const outstanding = Object.values(this.reckon.state.earlyPayLinks).includes('sent');
+      if (outstanding) this.result('check_links', 'Invoice not paid yet.', [], []);
       return;
     }
     const r = await this.reckon.run();
